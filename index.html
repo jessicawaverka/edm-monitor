@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Event-Driven Markets Monitor | NRF US Financial Services</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'IBM Plex Sans', -apple-system, sans-serif; }
+    input:focus, button:focus { outline: none; }
+    a { text-decoration: none; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #f1f1f1; }
+    ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #aaa; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useMemo } = React;
+
+    // Lucide icons as simple SVG components
+    const Icons = {
+      Calendar: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+      TrendingUp: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>,
+      AlertTriangle: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
+      Building2: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>,
+      Scale: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>,
+      Users: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+      Briefcase: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>,
+      ChevronDown: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>,
+      ChevronRight: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>,
+      ExternalLink: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>,
+      Filter: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>,
+      Bell: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
+      Download: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+      Mail: () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
+      X: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+      Check: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>,
+      BarChart3: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>,
+      Activity: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
+      MapPin: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
+    };
+
+    // Sample data
+    const SAMPLE_DATA = [
+      { id: 1, title: "CFTC Approves Kalshi Congressional Election Contracts", source: "Federal Register", category: "federal", priority: "high", date: "2026-02-05", state: null, keywords: ["CFTC", "Kalshi", "election", "approved"], url: "https://federalregister.gov" },
+      { id: 2, title: "Nevada Gaming Commission Reviews Event Contract Applications", source: "Nevada Gaming Control Board", category: "state", priority: "high", date: "2026-02-05", state: "NV", keywords: ["Nevada", "gaming", "event contract"], url: "https://gaming.nv.gov" },
+      { id: 3, title: "NY AG Launches Investigation into Polymarket Operations", source: "NY Attorney General", category: "enforcement", priority: "high", date: "2026-02-04", state: "NY", keywords: ["Polymarket", "investigation", "enforcement"], url: "https://ag.ny.gov" },
+      { id: 4, title: "AGA Issues Statement on Prediction Market Expansion", source: "American Gaming Association", category: "trade", priority: "medium", date: "2026-02-04", state: null, keywords: ["AGA", "prediction market"], url: "https://americangaming.org" },
+      { id: 5, title: "Kalshi Files Appeal in Federal Court", source: "PACER", category: "courts", priority: "high", date: "2026-02-04", state: null, keywords: ["Kalshi", "appeal", "court"], url: "https://pacer.uscourts.gov" },
+      { id: 6, title: "Connecticut Considers Event Contract Legislation", source: "CT General Assembly", category: "state", priority: "medium", date: "2026-02-03", state: "CT", keywords: ["Connecticut", "legislation"], url: "https://cga.ct.gov" },
+      { id: 7, title: "SEC Staff Releases Guidance on Digital Asset Event Contracts", source: "SEC", category: "federal", priority: "high", date: "2026-02-03", state: null, keywords: ["SEC", "digital asset", "guidance"], url: "https://sec.gov" },
+      { id: 8, title: "DraftKings Explores Prediction Market Entry", source: "Bloomberg", category: "participants", priority: "medium", date: "2026-02-03", state: null, keywords: ["DraftKings", "prediction market"], url: "https://bloomberg.com" },
+      { id: 9, title: "Tribal Gaming Commission Opposes Event Contract Expansion", source: "NIGC", category: "trade", priority: "medium", date: "2026-02-02", state: null, keywords: ["tribal", "NIGC", "opposition"], url: "https://nigc.gov" },
+      { id: 10, title: "New Jersey Gaming Enforcement Issues Cease and Desist", source: "NJ DGE", category: "enforcement", priority: "high", date: "2026-02-02", state: "NJ", keywords: ["New Jersey", "enforcement", "cease and desist"], url: "https://nj.gov/oag/ge" },
+      { id: 11, title: "CFTC Opens Comment Period on Event Contract Rules", source: "Federal Register", category: "federal", priority: "medium", date: "2026-02-01", state: null, keywords: ["CFTC", "comment period", "rulemaking"], url: "https://federalregister.gov" },
+      { id: 12, title: "Pennsylvania Gaming Board Seeks Public Input", source: "PA Gaming Control Board", category: "state", priority: "low", date: "2026-02-01", state: "PA", keywords: ["Pennsylvania", "gaming"], url: "https://gamingcontrolboard.pa.gov" },
+      { id: 13, title: "Fifth Circuit Hears Kalshi Preemption Arguments", source: "Reuters Legal", category: "courts", priority: "high", date: "2026-01-31", state: null, keywords: ["Fifth Circuit", "Kalshi", "preemption"], url: "https://reuters.com/legal" },
+      { id: 14, title: "Michigan Gaming Board Approves Event Contract Pilot", source: "MI Gaming Control Board", category: "state", priority: "high", date: "2026-01-31", state: "MI", keywords: ["Michigan", "approved", "pilot"], url: "https://michigan.gov/mgcb" },
+      { id: 15, title: "Interactive Brokers Announces Prediction Market Integration", source: "PR Newswire", category: "participants", priority: "medium", date: "2026-01-30", state: null, keywords: ["Interactive Brokers", "prediction market"], url: "https://prnewswire.com" },
+    ];
+
+    const CATEGORIES = {
+      federal: { label: "Federal Regulatory", icon: "Building2", color: "#1e3a5f" },
+      state: { label: "State Actions", icon: "MapPin", color: "#2d5a3d" },
+      enforcement: { label: "Enforcement", icon: "AlertTriangle", color: "#8b2635" },
+      courts: { label: "Courts & Litigation", icon: "Scale", color: "#4a3c6e" },
+      trade: { label: "Trade Associations", icon: "Users", color: "#5c4a2a" },
+      participants: { label: "Market Participants", icon: "Briefcase", color: "#2a4a5c" },
+    };
+
+    const US_STATES = {
+      AL: { name: "Alabama", x: 515, y: 320 }, AK: { name: "Alaska", x: 100, y: 420 },
+      AZ: { name: "Arizona", x: 190, y: 300 }, AR: { name: "Arkansas", x: 430, y: 290 },
+      CA: { name: "California", x: 95, y: 230 }, CO: { name: "Colorado", x: 260, y: 240 },
+      CT: { name: "Connecticut", x: 620, y: 165 }, DE: { name: "Delaware", x: 600, y: 210 },
+      FL: { name: "Florida", x: 560, y: 380 }, GA: { name: "Georgia", x: 540, y: 320 },
+      HI: { name: "Hawaii", x: 180, y: 420 }, ID: { name: "Idaho", x: 170, y: 140 },
+      IL: { name: "Illinois", x: 460, y: 220 }, IN: { name: "Indiana", x: 490, y: 220 },
+      IA: { name: "Iowa", x: 400, y: 190 }, KS: { name: "Kansas", x: 340, y: 250 },
+      KY: { name: "Kentucky", x: 510, y: 260 }, LA: { name: "Louisiana", x: 430, y: 360 },
+      ME: { name: "Maine", x: 640, y: 100 }, MD: { name: "Maryland", x: 585, y: 215 },
+      MA: { name: "Massachusetts", x: 630, y: 150 }, MI: { name: "Michigan", x: 490, y: 160 },
+      MN: { name: "Minnesota", x: 390, y: 130 }, MS: { name: "Mississippi", x: 460, y: 330 },
+      MO: { name: "Missouri", x: 410, y: 260 }, MT: { name: "Montana", x: 210, y: 100 },
+      NE: { name: "Nebraska", x: 330, y: 200 }, NV: { name: "Nevada", x: 135, y: 200 },
+      NH: { name: "New Hampshire", x: 630, y: 130 }, NJ: { name: "New Jersey", x: 605, y: 195 },
+      NM: { name: "New Mexico", x: 250, y: 310 }, NY: { name: "New York", x: 590, y: 155 },
+      NC: { name: "North Carolina", x: 565, y: 275 }, ND: { name: "North Dakota", x: 330, y: 110 },
+      OH: { name: "Ohio", x: 525, y: 210 }, OK: { name: "Oklahoma", x: 350, y: 300 },
+      OR: { name: "Oregon", x: 110, y: 120 }, PA: { name: "Pennsylvania", x: 570, y: 190 },
+      RI: { name: "Rhode Island", x: 635, y: 160 }, SC: { name: "South Carolina", x: 555, y: 300 },
+      SD: { name: "South Dakota", x: 330, y: 150 }, TN: { name: "Tennessee", x: 500, y: 280 },
+      TX: { name: "Texas", x: 330, y: 360 }, UT: { name: "Utah", x: 195, y: 220 },
+      VT: { name: "Vermont", x: 615, y: 120 }, VA: { name: "Virginia", x: 565, y: 240 },
+      WA: { name: "Washington", x: 130, y: 70 }, WV: { name: "West Virginia", x: 545, y: 235 },
+      WI: { name: "Wisconsin", x: 440, y: 150 }, WY: { name: "Wyoming", x: 250, y: 170 },
+    };
+
+    function App() {
+      const [selectedCategory, setSelectedCategory] = useState(null);
+      const [selectedState, setSelectedState] = useState(null);
+      const [selectedPriority, setSelectedPriority] = useState(null);
+      const [dateRange, setDateRange] = useState({ start: "2026-01-30", end: "2026-02-05" });
+      const [showCalendar, setShowCalendar] = useState(false);
+      const [expandedCategories, setExpandedCategories] = useState({ federal: true, enforcement: true });
+      const [subscriberEmail, setSubscriberEmail] = useState("");
+      const [isSubscribed, setIsSubscribed] = useState(false);
+      const [hoveredState, setHoveredState] = useState(null);
+
+      const filteredData = useMemo(() => {
+        return SAMPLE_DATA.filter(item => {
+          const dateMatch = item.date >= dateRange.start && item.date <= dateRange.end;
+          const categoryMatch = !selectedCategory || item.category === selectedCategory;
+          const stateMatch = !selectedState || item.state === selectedState;
+          const priorityMatch = !selectedPriority || item.priority === selectedPriority;
+          return dateMatch && categoryMatch && stateMatch && priorityMatch;
+        });
+      }, [selectedCategory, selectedState, selectedPriority, dateRange]);
+
+      const analytics = useMemo(() => {
+        const byCategory = {};
+        const byPriority = { high: 0, medium: 0, low: 0 };
+        const byState = {};
+        const byDate = {};
+        
+        filteredData.forEach(item => {
+          byCategory[item.category] = (byCategory[item.category] || 0) + 1;
+          byPriority[item.priority]++;
+          if (item.state) byState[item.state] = (byState[item.state] || 0) + 1;
+          byDate[item.date] = (byDate[item.date] || 0) + 1;
+        });
+        
+        return { byCategory, byPriority, byState, byDate };
+      }, [filteredData]);
+
+      const clearFilters = () => {
+        setSelectedCategory(null);
+        setSelectedState(null);
+        setSelectedPriority(null);
+      };
+
+      const hasActiveFilters = selectedCategory || selectedState || selectedPriority;
+
+      const toggleCategory = (cat) => {
+        setExpandedCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
+      };
+
+      const getStateActivity = (stateCode) => {
+        const count = analytics.byState[stateCode] || 0;
+        const hasHighPriority = filteredData.some(d => d.state === stateCode && d.priority === 'high');
+        return { count, hasHighPriority };
+      };
+
+      const IconComponent = ({ name, size = 14 }) => {
+        const Icon = Icons[name];
+        return Icon ? <Icon /> : null;
+      };
+
+      return (
+        <div style={{ 
+          minHeight: '100vh', 
+          background: 'linear-gradient(135deg, #f8f6f3 0%, #ebe7e0 100%)',
+          fontFamily: "'IBM Plex Sans', -apple-system, sans-serif",
+          color: '#1a1a1a'
+        }}>
+          {/* Header */}
+          <header style={{
+            background: 'linear-gradient(135deg, #1a2634 0%, #2d3e50 100%)',
+            color: '#fff',
+            padding: '20px 32px',
+            borderBottom: '3px solid #c9a962'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{
+                  width: 48,
+                  height: 48,
+                  background: 'linear-gradient(135deg, #c9a962 0%, #a08339 100%)',
+                  borderRadius: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: "'Crimson Pro', Georgia, serif",
+                  fontSize: 28,
+                  fontWeight: 700,
+                  color: '#1a2634'
+                }}>E</div>
+                <div>
+                  <h1 style={{ 
+                    margin: 0, 
+                    fontSize: 24, 
+                    fontWeight: 600,
+                    fontFamily: "'Crimson Pro', Georgia, serif",
+                    letterSpacing: '0.5px'
+                  }}>Event-Driven Markets Monitor</h1>
+                  <p style={{ 
+                    margin: '4px 0 0', 
+                    fontSize: 13, 
+                    color: '#a0b0c0',
+                    letterSpacing: '1px',
+                    textTransform: 'uppercase'
+                  }}>Regulatory Intelligence for Event Contracts & Prediction Markets</p>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 12, color: '#a0b0c0', textTransform: 'uppercase', letterSpacing: 1 }}>NRF US Financial Services Team</div>
+                <div style={{ fontSize: 14, marginTop: 4 }}>Thursday, February 05, 2026 • 9:15 AM ET</div>
+              </div>
+            </div>
+          </header>
+
+          {/* Priority Alert Banner */}
+          {analytics.byPriority.high > 0 && (
+            <div style={{
+              background: 'linear-gradient(90deg, #8b2635 0%, #a83242 100%)',
+              color: '#fff',
+              padding: '12px 32px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12
+            }}>
+              <IconComponent name="AlertTriangle" />
+              <span style={{ fontWeight: 600 }}>{analytics.byPriority.high} HIGH PRIORITY</span>
+              <span style={{ color: '#ffcdd2' }}>items requiring immediate attention</span>
+              <button 
+                onClick={() => setSelectedPriority(selectedPriority === 'high' ? null : 'high')}
+                style={{
+                  marginLeft: 'auto',
+                  background: selectedPriority === 'high' ? '#fff' : 'rgba(255,255,255,0.2)',
+                  color: selectedPriority === 'high' ? '#8b2635' : '#fff',
+                  border: 'none',
+                  padding: '6px 16px',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                  transition: 'all 0.2s'
+                }}
+              >{selectedPriority === 'high' ? 'Showing High Priority' : 'View All →'}</button>
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr 320px', gap: 0, minHeight: 'calc(100vh - 140px)' }}>
+            {/* Left Sidebar */}
+            <aside style={{ 
+              background: '#fff', 
+              borderRight: '1px solid #ddd',
+              padding: '24px',
+              overflowY: 'auto'
+            }}>
+              {/* Date Range Picker */}
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between',
+                  marginBottom: 12
+                }}>
+                  <h3 style={{ margin: 0, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, color: '#666', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <IconComponent name="Calendar" />
+                    Date Range
+                  </h3>
+                  <button 
+                    onClick={() => setShowCalendar(!showCalendar)}
+                    style={{
+                      background: '#f5f3f0',
+                      border: 'none',
+                      padding: '4px 8px',
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                      fontSize: 11,
+                      color: '#666'
+                    }}
+                  >{showCalendar ? 'Hide' : 'Show'} Calendar</button>
+                </div>
+                
+                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                  <input 
+                    type="date" 
+                    value={dateRange.start}
+                    onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                    style={{
+                      flex: 1,
+                      padding: '8px 10px',
+                      border: '1px solid #ddd',
+                      borderRadius: 4,
+                      fontSize: 13,
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                  <input 
+                    type="date" 
+                    value={dateRange.end}
+                    onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                    style={{
+                      flex: 1,
+                      padding: '8px 10px',
+                      border: '1px solid #ddd',
+                      borderRadius: 4,
+                      fontSize: 13,
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
+
+                {showCalendar && (
+                  <div style={{ 
+                    background: '#f9f8f6', 
+                    borderRadius: 8, 
+                    padding: 12, 
+                    marginTop: 8 
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <span style={{ fontWeight: 600, fontSize: 13 }}>February 2026</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, fontSize: 11 }}>
+                      {['S','M','T','W','T','F','S'].map((d, i) => (
+                        <div key={i} style={{ textAlign: 'center', color: '#999', padding: 4 }}>{d}</div>
+                      ))}
+                      {[...Array(28)].map((_, i) => {
+                        const day = i + 1;
+                        const dateStr = `2026-02-${day.toString().padStart(2, '0')}`;
+                        const hasActivity = SAMPLE_DATA.some(d => d.date === dateStr);
+                        const isInRange = dateStr >= dateRange.start && dateStr <= dateRange.end;
+                        return (
+                          <button
+                            key={i}
+                            onClick={() => {
+                              if (!dateRange.start || (dateRange.start && dateRange.end)) {
+                                setDateRange({ start: dateStr, end: dateStr });
+                              } else {
+                                setDateRange(prev => ({
+                                  start: prev.start,
+                                  end: dateStr > prev.start ? dateStr : prev.start
+                                }));
+                              }
+                            }}
+                            style={{
+                              background: isInRange ? '#c9a962' : hasActivity ? '#e8f5e9' : 'transparent',
+                              color: isInRange ? '#fff' : hasActivity ? '#2d5a3d' : '#333',
+                              border: 'none',
+                              borderRadius: 4,
+                              padding: 6,
+                              cursor: 'pointer',
+                              fontWeight: hasActivity ? 600 : 400,
+                              position: 'relative'
+                            }}
+                          >
+                            {day}
+                            {hasActivity && !isInRange && (
+                              <div style={{
+                                position: 'absolute',
+                                bottom: 2,
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                width: 4,
+                                height: 4,
+                                background: '#2d5a3d',
+                                borderRadius: '50%'
+                              }} />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                  {[
+                    { label: 'Today', start: '2026-02-05', end: '2026-02-05' },
+                    { label: '7 Days', start: '2026-01-30', end: '2026-02-05' },
+                    { label: '14 Days', start: '2026-01-23', end: '2026-02-05' },
+                    { label: '30 Days', start: '2026-01-06', end: '2026-02-05' },
+                  ].map(preset => (
+                    <button
+                      key={preset.label}
+                      onClick={() => setDateRange({ start: preset.start, end: preset.end })}
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: 11,
+                        border: '1px solid #ddd',
+                        borderRadius: 4,
+                        background: dateRange.start === preset.start ? '#1a2634' : '#fff',
+                        color: dateRange.start === preset.start ? '#fff' : '#666',
+                        cursor: 'pointer'
+                      }}
+                    >{preset.label}</button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Category Filter */}
+              <div style={{ marginBottom: 24 }}>
+                <h3 style={{ margin: '0 0 12px', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, color: '#666', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <IconComponent name="Filter" />
+                  Filter by Category
+                </h3>
+                {Object.entries(CATEGORIES).map(([key, cat]) => {
+                  const count = analytics.byCategory[key] || 0;
+                  const isSelected = selectedCategory === key;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setSelectedCategory(isSelected ? null : key)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        width: '100%',
+                        padding: '10px 12px',
+                        marginBottom: 6,
+                        background: isSelected ? cat.color : '#f9f8f6',
+                        color: isSelected ? '#fff' : '#333',
+                        border: isSelected ? 'none' : '1px solid #eee',
+                        borderRadius: 6,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <span style={{ marginRight: 10, opacity: 0.8 }}><IconComponent name={cat.icon} /></span>
+                      <span style={{ flex: 1, fontSize: 13, fontWeight: 500 }}>{cat.label}</span>
+                      <span style={{
+                        background: isSelected ? 'rgba(255,255,255,0.2)' : cat.color,
+                        color: '#fff',
+                        padding: '2px 8px',
+                        borderRadius: 10,
+                        fontSize: 11,
+                        fontWeight: 600
+                      }}>{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Priority Filter */}
+              <div style={{ marginBottom: 24 }}>
+                <h3 style={{ margin: '0 0 12px', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, color: '#666', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <IconComponent name="Activity" />
+                  Filter by Priority
+                </h3>
+                {[
+                  { key: 'high', label: 'High Priority', color: '#8b2635' },
+                  { key: 'medium', label: 'Monitor', color: '#c9a962' },
+                  { key: 'low', label: 'Standard', color: '#666' },
+                ].map(p => {
+                  const count = analytics.byPriority[p.key] || 0;
+                  const isSelected = selectedPriority === p.key;
+                  return (
+                    <button
+                      key={p.key}
+                      onClick={() => setSelectedPriority(isSelected ? null : p.key)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        width: '100%',
+                        padding: '8px 12px',
+                        marginBottom: 4,
+                        background: isSelected ? p.color : 'transparent',
+                        color: isSelected ? '#fff' : '#333',
+                        border: `1px solid ${isSelected ? p.color : '#eee'}`,
+                        borderRadius: 4,
+                        cursor: 'pointer',
+                        fontSize: 13
+                      }}
+                    >
+                      <span style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: p.color,
+                        marginRight: 10
+                      }} />
+                      <span style={{ flex: 1 }}>{p.label}</span>
+                      <span style={{ fontWeight: 600 }}>{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    background: '#f0f0f0',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    color: '#666',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6
+                  }}
+                >
+                  <IconComponent name="X" /> Clear All Filters
+                </button>
+              )}
+            </aside>
+
+            {/* Main Content */}
+            <main style={{ padding: '24px 32px', overflow: 'auto' }}>
+              {/* Executive Brief */}
+              <div style={{
+                background: 'linear-gradient(135deg, #1a2634 0%, #2d3e50 100%)',
+                borderRadius: 12,
+                padding: 24,
+                marginBottom: 24,
+                color: '#fff'
+              }}>
+                <h2 style={{ 
+                  margin: '0 0 16px', 
+                  fontSize: 14, 
+                  textTransform: 'uppercase', 
+                  letterSpacing: 2,
+                  color: '#c9a962',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8
+                }}>
+                  <IconComponent name="TrendingUp" />
+                  Executive Intelligence Brief
+                </h2>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+                  <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 8, padding: 16 }}>
+                    <div style={{ fontSize: 11, color: '#a0b0c0', textTransform: 'uppercase', letterSpacing: 1 }}>Regulatory Posture</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4 }}>Active</div>
+                    <div style={{ fontSize: 12, color: '#a0b0c0', marginTop: 4 }}>CFTC and SEC both issuing guidance</div>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 8, padding: 16 }}>
+                    <div style={{ fontSize: 11, color: '#a0b0c0', textTransform: 'uppercase', letterSpacing: 1 }}>State Activity</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4 }}>{Object.keys(analytics.byState).length} States</div>
+                    <div style={{ fontSize: 12, color: '#a0b0c0', marginTop: 4 }}>NV, NY, NJ showing most movement</div>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 8, padding: 16 }}>
+                    <div style={{ fontSize: 11, color: '#a0b0c0', textTransform: 'uppercase', letterSpacing: 1 }}>Enforcement Trend</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4, color: '#ff8a80' }}>↑ Elevated</div>
+                    <div style={{ fontSize: 12, color: '#a0b0c0', marginTop: 4 }}>{analytics.byCategory.enforcement || 0} enforcement items detected</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Filters Display */}
+              {hasActiveFilters && (
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 8, 
+                  marginBottom: 16,
+                  padding: '8px 12px',
+                  background: '#f5f3f0',
+                  borderRadius: 6
+                }}>
+                  <span style={{ fontSize: 12, color: '#666' }}>Filtering:</span>
+                  {selectedCategory && (
+                    <span style={{
+                      background: CATEGORIES[selectedCategory].color,
+                      color: '#fff',
+                      padding: '4px 10px',
+                      borderRadius: 4,
+                      fontSize: 12,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6
+                    }}>
+                      {CATEGORIES[selectedCategory].label}
+                      <span style={{ cursor: 'pointer' }} onClick={() => setSelectedCategory(null)}><IconComponent name="X" /></span>
+                    </span>
+                  )}
+                  {selectedState && (
+                    <span style={{
+                      background: '#2d5a3d',
+                      color: '#fff',
+                      padding: '4px 10px',
+                      borderRadius: 4,
+                      fontSize: 12,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6
+                    }}>
+                      {US_STATES[selectedState]?.name}
+                      <span style={{ cursor: 'pointer' }} onClick={() => setSelectedState(null)}><IconComponent name="X" /></span>
+                    </span>
+                  )}
+                  {selectedPriority && (
+                    <span style={{
+                      background: selectedPriority === 'high' ? '#8b2635' : selectedPriority === 'medium' ? '#c9a962' : '#666',
+                      color: '#fff',
+                      padding: '4px 10px',
+                      borderRadius: 4,
+                      fontSize: 12,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6
+                    }}>
+                      {selectedPriority.charAt(0).toUpperCase() + selectedPriority.slice(1)} Priority
+                      <span style={{ cursor: 'pointer' }} onClick={() => setSelectedPriority(null)}><IconComponent name="X" /></span>
+                    </span>
+                  )}
+                  <span style={{ fontSize: 12, color: '#666', marginLeft: 'auto' }}>{filteredData.length} items</span>
+                </div>
+              )}
+
+              {/* Stories by Category */}
+              <div style={{ marginBottom: 24 }}>
+                <h3 style={{ 
+                  margin: '0 0 16px', 
+                  fontSize: 12, 
+                  textTransform: 'uppercase', 
+                  letterSpacing: 1, 
+                  color: '#666',
+                  paddingBottom: 8,
+                  borderBottom: '2px solid #eee'
+                }}>
+                  {hasActiveFilters ? 'Filtered Results' : 'All Developments'} ({filteredData.length})
+                </h3>
+                
+                {Object.entries(CATEGORIES).map(([catKey, cat]) => {
+                  const items = filteredData.filter(d => d.category === catKey);
+                  if (items.length === 0) return null;
+                  const isExpanded = expandedCategories[catKey];
+                  
+                  return (
+                    <div key={catKey} style={{ marginBottom: 12 }}>
+                      <button
+                        onClick={() => toggleCategory(catKey)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          width: '100%',
+                          padding: '12px 16px',
+                          background: '#fff',
+                          border: '1px solid #e0e0e0',
+                          borderRadius: isExpanded ? '8px 8px 0 0' : 8,
+                          cursor: 'pointer',
+                          textAlign: 'left'
+                        }}
+                      >
+                        <IconComponent name={isExpanded ? "ChevronDown" : "ChevronRight"} />
+                        <span style={{ marginLeft: 8, color: cat.color }}><IconComponent name={cat.icon} /></span>
+                        <span style={{ 
+                          flex: 1, 
+                          marginLeft: 10, 
+                          fontWeight: 600, 
+                          fontSize: 14,
+                          color: '#333'
+                        }}>{cat.label}</span>
+                        <span style={{
+                          background: cat.color,
+                          color: '#fff',
+                          padding: '2px 10px',
+                          borderRadius: 10,
+                          fontSize: 12
+                        }}>{items.length}</span>
+                      </button>
+                      
+                      {isExpanded && (
+                        <div style={{ 
+                          background: '#fff',
+                          border: '1px solid #e0e0e0',
+                          borderTop: 'none',
+                          borderRadius: '0 0 8px 8px',
+                          overflow: 'hidden'
+                        }}>
+                          {items.map(item => (
+                            <a
+                              key={item.id}
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                padding: '14px 20px',
+                                borderBottom: '1px solid #f0f0f0',
+                                textDecoration: 'none',
+                                color: 'inherit',
+                                transition: 'background 0.2s'
+                              }}
+                              onMouseOver={(e) => e.currentTarget.style.background = '#f9f8f6'}
+                              onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                            >
+                              <span style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: '50%',
+                                background: item.priority === 'high' ? '#8b2635' : item.priority === 'medium' ? '#c9a962' : '#ccc',
+                                marginTop: 6,
+                                marginRight: 12,
+                                flexShrink: 0
+                              }} />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ 
+                                  fontSize: 14, 
+                                  fontWeight: 500, 
+                                  color: '#1a2634',
+                                  marginBottom: 4,
+                                  fontFamily: "'Crimson Pro', Georgia, serif"
+                                }}>{item.title}</div>
+                                <div style={{ display: 'flex', gap: 12, fontSize: 11, color: '#888' }}>
+                                  <span>{item.source}</span>
+                                  <span>•</span>
+                                  <span>{item.date}</span>
+                                  {item.state && (
+                                    <>
+                                      <span>•</span>
+                                      <span style={{ 
+                                        background: '#e8f5e9', 
+                                        color: '#2d5a3d', 
+                                        padding: '0 6px', 
+                                        borderRadius: 3 
+                                      }}>{item.state}</span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                              <span style={{ color: '#ccc', flexShrink: 0, marginLeft: 12 }}><IconComponent name="ExternalLink" /></span>
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </main>
+
+            {/* Right Sidebar */}
+            <aside style={{ 
+              background: '#fff', 
+              borderLeft: '1px solid #ddd',
+              padding: '24px',
+              overflow: 'auto'
+            }}>
+              {/* State Heatmap */}
+              <div style={{ marginBottom: 24 }}>
+                <h3 style={{ margin: '0 0 12px', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, color: '#666', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <IconComponent name="MapPin" />
+                  State Activity Map
+                  <span style={{ fontWeight: 400, marginLeft: 8, fontSize: 10 }}>Click to filter</span>
+                </h3>
+                <div style={{ 
+                  background: '#f9f8f6', 
+                  borderRadius: 8, 
+                  padding: 16,
+                  position: 'relative'
+                }}>
+                  <svg viewBox="0 0 700 450" style={{ width: '100%', height: 'auto' }}>
+                    {Object.entries(US_STATES).map(([code, state]) => {
+                      const { count, hasHighPriority } = getStateActivity(code);
+                      const isSelected = selectedState === code;
+                      const isHovered = hoveredState === code;
+                      
+                      return (
+                        <g key={code}>
+                          <circle
+                            cx={state.x}
+                            cy={state.y}
+                            r={count > 0 ? 12 + count * 3 : 8}
+                            fill={
+                              isSelected ? '#1a2634' :
+                              count > 0 ? (hasHighPriority ? '#8b2635' : '#2d5a3d') :
+                              '#e0e0e0'
+                            }
+                            stroke={isHovered ? '#c9a962' : 'transparent'}
+                            strokeWidth={3}
+                            style={{ cursor: count > 0 ? 'pointer' : 'default', transition: 'all 0.2s' }}
+                            onClick={() => count > 0 && setSelectedState(isSelected ? null : code)}
+                            onMouseEnter={() => setHoveredState(code)}
+                            onMouseLeave={() => setHoveredState(null)}
+                          />
+                          <text
+                            x={state.x}
+                            y={state.y + 4}
+                            textAnchor="middle"
+                            fontSize="9"
+                            fontWeight="600"
+                            fill={count > 0 || isSelected ? '#fff' : '#999'}
+                            style={{ pointerEvents: 'none' }}
+                          >{code}</text>
+                        </g>
+                      );
+                    })}
+                  </svg>
+                  {hoveredState && (
+                    <div style={{
+                      position: 'absolute',
+                      bottom: 8,
+                      left: 8,
+                      background: '#1a2634',
+                      color: '#fff',
+                      padding: '4px 10px',
+                      borderRadius: 4,
+                      fontSize: 11
+                    }}>
+                      {US_STATES[hoveredState]?.name}: {analytics.byState[hoveredState] || 0} items
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: 10, color: '#888' }}>
+                  <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#8b2635', marginRight: 4 }} />High Priority</span>
+                  <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#2d5a3d', marginRight: 4 }} />Active</span>
+                  <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#e0e0e0', marginRight: 4 }} />No Activity</span>
+                </div>
+              </div>
+
+              {/* Activity Chart */}
+              <div style={{ marginBottom: 24 }}>
+                <h3 style={{ margin: '0 0 12px', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, color: '#666', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <IconComponent name="BarChart3" />
+                  7-Day Activity
+                </h3>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 80 }}>
+                  {['01-30', '01-31', '02-01', '02-02', '02-03', '02-04', '02-05'].map(dateKey => {
+                    const fullDate = `2026-${dateKey}`;
+                    const count = analytics.byDate[fullDate] || 0;
+                    const maxCount = Math.max(...Object.values(analytics.byDate), 1);
+                    const height = (count / maxCount) * 60 + 10;
+                    
+                    return (
+                      <div key={dateKey} style={{ flex: 1, textAlign: 'center' }}>
+                        <div style={{
+                          height: height,
+                          background: count > 0 ? 'linear-gradient(180deg, #c9a962 0%, #a08339 100%)' : '#e0e0e0',
+                          borderRadius: '4px 4px 0 0',
+                          transition: 'height 0.3s'
+                        }} />
+                        <div style={{ fontSize: 9, color: '#888', marginTop: 4 }}>{dateKey.split('-')[1]}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Subscribe */}
+              <div style={{ 
+                background: 'linear-gradient(135deg, #f9f8f6 0%, #f0ede7 100%)', 
+                borderRadius: 8, 
+                padding: 16,
+                marginBottom: 24
+              }}>
+                <h3 style={{ margin: '0 0 12px', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, color: '#666', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <IconComponent name="Bell" />
+                  Daily Digest
+                </h3>
+                {!isSubscribed ? (
+                  <>
+                    <input
+                      type="email"
+                      placeholder="Enter email address"
+                      value={subscriberEmail}
+                      onChange={(e) => setSubscriberEmail(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: '1px solid #ddd',
+                        borderRadius: 6,
+                        fontSize: 13,
+                        marginBottom: 8,
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                    <button
+                      onClick={() => subscriberEmail && setIsSubscribed(true)}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        background: '#1a2634',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 6,
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        fontSize: 13
+                      }}
+                    >Subscribe</button>
+                    <p style={{ margin: '8px 0 0', fontSize: 11, color: '#888' }}>
+                      Daily digest sent at 10:00 AM ET
+                    </p>
+                  </>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                    <span style={{ color: '#2d5a3d' }}><IconComponent name="Check" /></span>
+                    <div style={{ fontWeight: 600, color: '#2d5a3d', marginTop: 8 }}>Subscribed!</div>
+                    <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>{subscriberEmail}</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Export */}
+              <div style={{ marginBottom: 24 }}>
+                <h3 style={{ margin: '0 0 12px', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, color: '#666', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <IconComponent name="Download" />
+                  Export
+                </h3>
+                <button style={{
+                  width: '100%',
+                  padding: '10px',
+                  background: '#fff',
+                  border: '1px solid #ddd',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  marginBottom: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8
+                }}>
+                  📄 Download Report
+                </button>
+                <button style={{
+                  width: '100%',
+                  padding: '10px',
+                  background: '#fff',
+                  border: '1px solid #ddd',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8
+                }}>
+                  📊 Export CSV
+                </button>
+              </div>
+
+              {/* Add Source */}
+              <div style={{ 
+                background: '#f9f8f6', 
+                borderRadius: 8, 
+                padding: 16,
+                textAlign: 'center'
+              }}>
+                <p style={{ margin: '0 0 8px', fontSize: 12, color: '#666' }}>
+                  Want to add another source?
+                </p>
+                <a 
+                  href="mailto:jessica.waverka@nortonrosefulbright.com?subject=EDM%20Monitor%20-%20Source%20Request"
+                  style={{
+                    color: '#c9a962',
+                    textDecoration: 'none',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 4
+                  }}
+                >
+                  <IconComponent name="Mail" />
+                  Contact Jessica Waverka
+                </a>
+              </div>
+            </aside>
+          </div>
+
+          {/* Footer */}
+          <footer style={{
+            background: '#1a2634',
+            color: '#a0b0c0',
+            padding: '16px 32px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: 11
+          }}>
+            <div>
+              <span style={{ color: '#c9a962', fontWeight: 600 }}>CONFIDENTIAL</span>
+              <span style={{ margin: '0 12px' }}>•</span>
+              Prepared by Jessica Waverka • NRF US Financial Services Team
+            </div>
+            <div>
+              Data refreshed: Feb 05, 2026 9:15 AM ET
+            </div>
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
