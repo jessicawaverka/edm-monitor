@@ -1,0 +1,35 @@
+name: Publish Approved Data
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  publish:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Publish draft to live
+        run: |
+          if [ -f data_draft.csv ]; then
+            cp data_draft.csv data.csv
+            echo "Published data_draft.csv → data.csv"
+          fi
+          
+          if [ -f data_draft.json ]; then
+            cp data_draft.json data.json
+            echo "Published data_draft.json → data.json"
+          fi
+      
+      - name: Commit published data
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add data.csv data.json || true
+          git commit -m "✅ Published approved data" || echo "No changes"
+          git push || true
