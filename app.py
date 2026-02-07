@@ -8,6 +8,7 @@ NRF US Financial Services Team
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 import requests
 import feedparser
 import json
@@ -113,7 +114,7 @@ def fetch_federal_register():
             if response.status_code == 200:
                 for doc in response.json().get("results", []):
                     title = doc.get("title", "")
-                    pdf_url = doc.get("pdf_url") or doc.get("html_url") or f"https://www.federalregister.gov/d/{doc.get('document_number', '')}"
+                    pdf_url = doc.get("pdf_url") or doc.get("html_url") or "https://www.federalregister.gov/d/" + doc.get('document_number', '')
                     articles.append({
                         "id": make_id(pdf_url),
                         "title": title,
@@ -178,7 +179,7 @@ def fetch_google_news():
     
     for query in searches:
         try:
-            feed_url = f"https://news.google.com/rss/search?q={quote(query)}&hl=en-US&gl=US&ceid=US:en"
+            feed_url = "https://news.google.com/rss/search?q=" + quote(query) + "&hl=en-US&gl=US&ceid=US:en"
             feed = feedparser.parse(feed_url)
             
             for entry in feed.entries[:8]:
@@ -191,7 +192,6 @@ def fetch_google_news():
                 pub = entry.get("published_parsed")
                 date_str = datetime(*pub[:6]).strftime("%Y-%m-%d") if pub else datetime.now().strftime("%Y-%m-%d")
                 
-                # Try to extract actual source from title (Google News format: "Title - Source")
                 source = "News"
                 if " - " in title:
                     parts = title.rsplit(" - ", 1)
@@ -227,7 +227,7 @@ def fetch_state_sources():
     
     for query, source, state, category in state_searches:
         try:
-            feed_url = f"https://news.google.com/rss/search?q={quote(query)}&hl=en-US"
+            feed_url = "https://news.google.com/rss/search?q=" + quote(query) + "&hl=en-US"
             feed = feedparser.parse(feed_url)
             
             for entry in feed.entries[:3]:
@@ -338,14 +338,13 @@ articles = fetch_all_data()
 last_updated = datetime.now().strftime("%B %d, %Y at %I:%M %p ET")
 
 # =============================================================================
-# RENDER REACT DASHBOARD
+# BUILD HTML (avoiding f-string issues)
 # =============================================================================
 
-# Convert data to JSON for React
 articles_json = json.dumps(articles)
 dcm_json = json.dumps(DCM_DATA)
 
-html_content = f"""
+html_template = '''
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -357,82 +356,58 @@ html_content = f"""
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-    body {{ font-family: 'IBM Plex Sans', -apple-system, sans-serif; background: #f5f5f0; }}
-    ::-webkit-scrollbar {{ width: 8px; }}
-    ::-webkit-scrollbar-track {{ background: #f1f1f1; }}
-    ::-webkit-scrollbar-thumb {{ background: #ccc; border-radius: 4px; }}
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'IBM Plex Sans', -apple-system, sans-serif; background: #f5f5f0; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #f1f1f1; }
+    ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+    a { color: #1e3a5f; text-decoration: none; }
+    a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
   <div id="root"></div>
   
   <script type="text/babel">
-    const {{ useState, useMemo }} = React;
+    const { useState, useMemo } = React;
     
     // LIVE DATA FROM SERVER
-    const ARTICLES = {articles_json};
-    const DCM_DATA = {dcm_json};
-    const LAST_UPDATED = "{last_updated}";
+    const ARTICLES = __ARTICLES_JSON__;
+    const DCM_DATA = __DCM_JSON__;
+    const LAST_UPDATED = "__LAST_UPDATED__";
 
-    const CATEGORIES = {{
-      federal: {{ label: "Federal Regulatory", color: "#1e3a5f" }},
-      state: {{ label: "State Actions", color: "#2d5a3d" }},
-      enforcement: {{ label: "Enforcement", color: "#8b2635" }},
-      courts: {{ label: "Courts & Litigation", color: "#4a3c6e" }},
-      trade: {{ label: "Trade Associations", color: "#5c4a2a" }},
-      participants: {{ label: "Market Participants", color: "#2a4a5c" }},
-      news: {{ label: "News Coverage", color: "#666666" }},
-    }};
-
-    const STATE_COORDS = {{
-      AL: [380, 340], AK: [120, 420], AZ: [150, 310], AR: [340, 300],
-      CA: [80, 240], CO: [210, 250], CT: [570, 175], DE: [555, 220],
-      FL: [480, 400], GA: [460, 330], HI: [180, 430], ID: [140, 150],
-      IL: [380, 220], IN: [410, 220], IA: [340, 190], KS: [280, 260],
-      KY: [430, 260], LA: [360, 370], ME: [590, 100], MD: [540, 225],
-      MA: [580, 160], MI: [420, 160], MN: [330, 130], MS: [380, 340],
-      MO: [350, 260], MT: [180, 100], NE: [270, 200], NV: [100, 220],
-      NH: [575, 140], NJ: [560, 200], NM: [190, 320], NY: [530, 160],
-      NC: [510, 280], ND: [270, 100], OH: [450, 220], OK: [290, 300],
-      OR: [80, 130], PA: [510, 195], RI: [585, 170], SC: [490, 310],
-      SD: [270, 150], TN: [420, 290], TX: [270, 370], UT: [150, 240],
-      VT: [565, 125], VA: [510, 250], WA: [100, 80], WV: [480, 240],
-      WI: [370, 150], WY: [200, 170], DC: [535, 235]
-    }};
-
-    function App() {{
+    function App() {
       const [selectedState, setSelectedState] = useState(null);
       const [activeTab, setActiveTab] = useState('developments');
-      const [dateRange, setDateRange] = useState({{
+      const [dateRange, setDateRange] = useState({
         start: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         end: new Date().toISOString().split('T')[0]
-      }});
+      });
 
-      const filteredData = useMemo(() => {{
-        return ARTICLES.filter(item => {{
+      const filteredData = useMemo(() => {
+        return ARTICLES.filter(item => {
           if (dateRange.start && item.date < dateRange.start) return false;
           if (dateRange.end && item.date > dateRange.end) return false;
           if (selectedState && item.state !== selectedState) return false;
           return true;
-        }});
-      }}, [dateRange, selectedState]);
+        });
+      }, [dateRange, selectedState]);
 
-      const analytics = useMemo(() => {{
-        const byState = {{}};
-        const byTier = {{ 1: 0, 2: 0, 3: 0 }};
-        const byPriority = {{ high: 0, medium: 0 }};
+      const analytics = useMemo(() => {
+        const byState = {};
+        const byTier = { 1: 0, 2: 0, 3: 0 };
+        const byPriority = { high: 0, medium: 0 };
         
-        filteredData.forEach(item => {{
+        filteredData.forEach(item => {
           if (item.state) byState[item.state] = (byState[item.state] || 0) + 1;
           byTier[item.tier] = (byTier[item.tier] || 0) + 1;
           byPriority[item.priority] = (byPriority[item.priority] || 0) + 1;
-        }});
+        });
         
-        return {{ byState, byTier, byPriority }};
-      }}, [filteredData]);
+        return { byState, byTier, byPriority };
+      }, [filteredData]);
 
-      const exportCSV = () => {{
+      const exportCSV = () => {
         const headers = ['Date', 'Tier', 'Priority', 'Title', 'Source', 'State', 'URL'];
         const rows = filteredData.map(item => [
           item.date, item.tier, item.priority,
@@ -440,54 +415,54 @@ html_content = f"""
           item.source, item.state || '', item.url
         ]);
         const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\\n');
-        const blob = new Blob([csv], {{ type: 'text/csv' }});
+        const blob = new Blob([csv], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = 'edm_report_' + new Date().toISOString().split('T')[0] + '.csv';
         a.click();
-      }};
+      };
+
+      const tierInfo = {
+        1: { label: 'Primary Government Sources', color: '#1e3a5f', desc: 'Federal Register, CFTC, State AG Actions' },
+        3: { label: 'News Coverage', color: '#666666', desc: 'Reuters, Bloomberg, Trade Publications' }
+      };
 
       return (
-        <div style={{ minHeight: '100vh' }}>
-          {{/* Header */}}
+        <div style={{minHeight: '100vh'}}>
+          {/* Header */}
           <header style={{
             background: 'linear-gradient(135deg, #1a2634 0%, #2d3e50 100%)',
-            color: 'white',
-            padding: '16px 24px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
+            color: 'white', padding: '16px 24px',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{display: 'flex', alignItems: 'center', gap: '16px'}}>
               <div style={{
                 width: '48px', height: '48px',
                 background: 'linear-gradient(135deg, #c9a962 0%, #d4b97a 100%)',
-                borderRadius: '8px',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: "'Crimson Pro', serif",
-                fontSize: '24px', fontWeight: '700', color: '#1a2634'
+                borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: "'Crimson Pro', serif", fontSize: '24px', fontWeight: '700', color: '#1a2634'
               }}>E</div>
               <div>
-                <h1 style={{ fontSize: '20px', fontWeight: '600', margin: 0 }}>Event-Driven Markets Monitor</h1>
-                <p style={{ fontSize: '12px', color: '#a0a0a0', margin: 0, letterSpacing: '1px', textTransform: 'uppercase' }}>
+                <h1 style={{fontSize: '20px', fontWeight: '600', margin: 0}}>Event-Driven Markets Monitor</h1>
+                <p style={{fontSize: '12px', color: '#a0a0a0', margin: 0, letterSpacing: '1px', textTransform: 'uppercase'}}>
                   Regulatory Intelligence • Live Data
                 </p>
               </div>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '11px', color: '#a0a0a0', textTransform: 'uppercase', letterSpacing: '1px' }}>
+            <div style={{textAlign: 'right'}}>
+              <div style={{fontSize: '11px', color: '#a0a0a0', textTransform: 'uppercase', letterSpacing: '1px'}}>
                 NRF US Financial Services Team
               </div>
-              <div style={{ fontSize: '13px', color: '#c9a962' }}>
-                Last Updated: {{LAST_UPDATED}}
+              <div style={{fontSize: '13px', color: '#c9a962'}}>
+                Last Updated: {LAST_UPDATED}
               </div>
             </div>
           </header>
 
-          {{/* Tabs */}}
-          <div style={{ background: '#1a2634', padding: '0 24px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-            <div style={{ display: 'flex', gap: '0' }}>
+          {/* Tabs */}
+          <div style={{background: '#1a2634', padding: '0 24px', borderTop: '1px solid rgba(255,255,255,0.1)'}}>
+            <div style={{display: 'flex', gap: '0'}}>
               <button onClick={() => setActiveTab('developments')} style={{
                 background: activeTab === 'developments' ? '#f5f5f0' : 'transparent',
                 color: activeTab === 'developments' ? '#1a2634' : '#a0a0a0',
@@ -505,220 +480,200 @@ html_content = f"""
             </div>
           </div>
 
-          {{/* Main */}}
-          <div style={{ display: 'flex', minHeight: 'calc(100vh - 140px)' }}>
-            {{/* Sidebar */}}
-            <aside style={{ width: '280px', background: 'white', borderRight: '1px solid #e0e0e0', padding: '20px', flexShrink: 0 }}>
-              {{/* Date Range */}}
-              <div style={{ marginBottom: '24px' }}>
-                <h3 style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#666', marginBottom: '12px' }}>📅 Date Range</h3>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input type="date" value={{dateRange.start}} onChange={{(e) => setDateRange({{ ...dateRange, start: e.target.value }})}}
-                    style={{ flex: 1, padding: '8px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '12px' }} />
-                  <input type="date" value={{dateRange.end}} onChange={{(e) => setDateRange({{ ...dateRange, end: e.target.value }})}}
-                    style={{ flex: 1, padding: '8px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '12px' }} />
-                </div>
-                <div style={{ display: 'flex', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
-                  {{['7d', '30d', '90d', '1y'].map(preset => (
-                    <button key={{preset}} onClick={{() => {{
-                      const end = new Date();
-                      const start = new Date();
-                      if (preset === '7d') start.setDate(end.getDate() - 7);
-                      else if (preset === '30d') start.setDate(end.getDate() - 30);
-                      else if (preset === '90d') start.setDate(end.getDate() - 90);
-                      else if (preset === '1y') start.setFullYear(end.getFullYear() - 1);
-                      setDateRange({{ start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0] }});
-                    }}}} style={{
-                      padding: '4px 10px', border: '1px solid #ddd', borderRadius: '4px',
-                      background: 'white', cursor: 'pointer', fontSize: '12px'
-                    }}>{{preset}}</button>
-                  ))}}
+          {/* Main */}
+          <div style={{display: 'flex', minHeight: 'calc(100vh - 140px)'}}>
+            {/* Sidebar */}
+            <aside style={{width: '280px', background: 'white', borderRight: '1px solid #e0e0e0', padding: '20px', flexShrink: 0}}>
+              {/* Date Range */}
+              <div style={{marginBottom: '24px'}}>
+                <h3 style={{fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#666', marginBottom: '12px'}}>📅 Date Range</h3>
+                <div style={{display: 'flex', gap: '8px'}}>
+                  <input type="date" value={dateRange.start} onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
+                    style={{flex: 1, padding: '8px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '12px'}} />
+                  <input type="date" value={dateRange.end} onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
+                    style={{flex: 1, padding: '8px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '12px'}} />
                 </div>
               </div>
 
-              {{/* Stats */}}
-              <div style={{ marginBottom: '24px' }}>
-                <h3 style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#666', marginBottom: '12px' }}>📊 Summary</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px', background: '#f5f5f5', borderRadius: '4px' }}>
+              {/* Stats */}
+              <div style={{marginBottom: '24px'}}>
+                <h3 style={{fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#666', marginBottom: '12px'}}>📊 Summary</h3>
+                <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                  <div style={{display: 'flex', justifyContent: 'space-between', padding: '8px', background: '#f5f5f5', borderRadius: '4px'}}>
+                    <span>Total Items</span>
+                    <span style={{fontWeight: '600'}}>{filteredData.length}</span>
+                  </div>
+                  <div style={{display: 'flex', justifyContent: 'space-between', padding: '8px', background: '#f5f5f5', borderRadius: '4px'}}>
                     <span>Primary Sources</span>
-                    <span style={{ fontWeight: '600', color: '#1e3a5f' }}>{{analytics.byTier[1]}}</span>
+                    <span style={{fontWeight: '600', color: '#1e3a5f'}}>{analytics.byTier[1]}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px', background: '#f5f5f5', borderRadius: '4px' }}>
-                    <span>News Coverage</span>
-                    <span style={{ fontWeight: '600', color: '#666' }}>{{analytics.byTier[3]}}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px', background: '#fff5f5', borderRadius: '4px' }}>
+                  <div style={{display: 'flex', justifyContent: 'space-between', padding: '8px', background: '#fff5f5', borderRadius: '4px'}}>
                     <span>🔴 High Priority</span>
-                    <span style={{ fontWeight: '600', color: '#c41e3a' }}>{{analytics.byPriority.high}}</span>
+                    <span style={{fontWeight: '600', color: '#c41e3a'}}>{analytics.byPriority.high}</span>
                   </div>
                 </div>
               </div>
 
-              {{/* Export */}}
-              <button onClick={{exportCSV}} style={{
+              {/* Export */}
+              <button onClick={exportCSV} style={{
                 width: '100%', padding: '12px', background: '#1e3a5f', color: 'white',
                 border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '500'
               }}>📥 Export CSV</button>
               
-              {{/* State Filter */}}
-              {{Object.keys(analytics.byState).length > 0 && (
-                <div style={{ marginTop: '24px' }}>
-                  <h3 style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#666', marginBottom: '12px' }}>🗺️ Active States</h3>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {{Object.entries(analytics.byState).map(([state, count]) => (
-                      <button key={{state}} onClick={{() => setSelectedState(selectedState === state ? null : state)}} style={{
+              {/* State Filter */}
+              {Object.keys(analytics.byState).length > 0 && (
+                <div style={{marginTop: '24px'}}>
+                  <h3 style={{fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#666', marginBottom: '12px'}}>🗺️ Active States</h3>
+                  <div style={{display: 'flex', flexWrap: 'wrap', gap: '6px'}}>
+                    {Object.entries(analytics.byState).map(([state, count]) => (
+                      <button key={state} onClick={() => setSelectedState(selectedState === state ? null : state)} style={{
                         padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px',
                         background: selectedState === state ? '#c41e3a' : '#2d5a3d',
                         color: 'white', border: 'none'
-                      }}>{{state}} ({{count}})</button>
-                    ))}}
-                    {{selectedState && (
-                      <button onClick={{() => setSelectedState(null)}} style={{
+                      }}>{state} ({count})</button>
+                    ))}
+                    {selectedState && (
+                      <button onClick={() => setSelectedState(null)} style={{
                         padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px',
                         background: '#666', color: 'white', border: 'none'
                       }}>Clear</button>
-                    )}}
+                    )}
                   </div>
                 </div>
-              )}}
+              )}
             </aside>
 
-            {{/* Content */}}
-            <main style={{ flex: 1, padding: '20px', overflow: 'auto' }}>
-              {{activeTab === 'developments' && (
-                <>
-                  {{/* Executive Brief */}}
+            {/* Content */}
+            <main style={{flex: 1, padding: '20px', overflow: 'auto'}}>
+              {activeTab === 'developments' && (
+                <div>
+                  {/* Executive Brief */}
                   <div style={{
                     background: 'linear-gradient(135deg, #1a2634 0%, #2d3e50 100%)',
                     borderRadius: '8px', padding: '20px 24px', marginBottom: '24px', color: 'white'
                   }}>
-                    <h2 style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '2px', color: '#c9a962', marginBottom: '16px' }}>
+                    <h2 style={{fontSize: '12px', textTransform: 'uppercase', letterSpacing: '2px', color: '#c9a962', marginBottom: '16px'}}>
                       📈 Executive Intelligence Brief
                     </h2>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px'}}>
                       <div>
-                        <div style={{ fontSize: '11px', color: '#a0a0a0', textTransform: 'uppercase' }}>Total Items</div>
-                        <div style={{ fontSize: '28px', fontWeight: '700', fontFamily: "'Crimson Pro', serif" }}>{{filteredData.length}}</div>
+                        <div style={{fontSize: '11px', color: '#a0a0a0', textTransform: 'uppercase'}}>Total Items</div>
+                        <div style={{fontSize: '28px', fontWeight: '700', fontFamily: "'Crimson Pro', serif"}}>{filteredData.length}</div>
                       </div>
                       <div>
-                        <div style={{ fontSize: '11px', color: '#a0a0a0', textTransform: 'uppercase' }}>Primary Sources</div>
-                        <div style={{ fontSize: '28px', fontWeight: '700', fontFamily: "'Crimson Pro', serif" }}>{{analytics.byTier[1]}}</div>
+                        <div style={{fontSize: '11px', color: '#a0a0a0', textTransform: 'uppercase'}}>Primary Sources</div>
+                        <div style={{fontSize: '28px', fontWeight: '700', fontFamily: "'Crimson Pro', serif"}}>{analytics.byTier[1]}</div>
                       </div>
                       <div>
-                        <div style={{ fontSize: '11px', color: '#a0a0a0', textTransform: 'uppercase' }}>High Priority</div>
-                        <div style={{ fontSize: '28px', fontWeight: '700', fontFamily: "'Crimson Pro', serif", color: '#c41e3a' }}>{{analytics.byPriority.high}}</div>
+                        <div style={{fontSize: '11px', color: '#a0a0a0', textTransform: 'uppercase'}}>High Priority</div>
+                        <div style={{fontSize: '28px', fontWeight: '700', fontFamily: "'Crimson Pro', serif", color: '#c41e3a'}}>{analytics.byPriority.high}</div>
                       </div>
                     </div>
                   </div>
 
-                  {{/* Articles by Tier */}}
-                  {{[1, 3].map(tier => {{
+                  {/* Articles by Tier */}
+                  {[1, 3].map(tier => {
                     const tierData = filteredData.filter(d => d.tier === tier);
                     if (tierData.length === 0) return null;
-                    
-                    const tierInfo = {{
-                      1: {{ label: 'Primary Government Sources', color: '#1e3a5f', desc: 'Federal Register, CFTC, State AG Actions' }},
-                      3: {{ label: 'News Coverage', color: '#666666', desc: 'Reuters, Bloomberg, Trade Publications' }}
-                    }}[tier];
+                    const info = tierInfo[tier];
                     
                     return (
-                      <div key={{tier}} style={{ marginBottom: '24px' }}>
+                      <div key={tier} style={{marginBottom: '24px'}}>
                         <div style={{
                           display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px',
-                          padding: '8px 12px', background: tierInfo.color + '15', borderRadius: '6px',
-                          borderLeft: '3px solid ' + tierInfo.color
+                          padding: '8px 12px', background: info.color + '15', borderRadius: '6px',
+                          borderLeft: '3px solid ' + info.color
                         }}>
-                          <span style={{ background: tierInfo.color, color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600' }}>
-                            {{tierData.length}}
+                          <span style={{background: info.color, color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600'}}>
+                            {tierData.length}
                           </span>
                           <div>
-                            <div style={{ fontWeight: '600', fontSize: '14px' }}>{{tierInfo.label}}</div>
-                            <div style={{ fontSize: '12px', color: '#666' }}>{{tierInfo.desc}}</div>
+                            <div style={{fontWeight: '600', fontSize: '14px'}}>{info.label}</div>
+                            <div style={{fontSize: '12px', color: '#666'}}>{info.desc}</div>
                           </div>
                         </div>
                         
-                        {{tierData.slice(0, 20).map(item => (
-                          <div key={{item.id}} style={{
+                        {tierData.slice(0, 20).map(item => (
+                          <div key={item.id} style={{
                             background: 'white', borderRadius: '6px', padding: '16px', marginBottom: '8px',
                             borderLeft: '3px solid ' + (item.priority === 'high' ? '#c41e3a' : '#d4a017'),
                             boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
                           }}>
-                            <a href={{item.url}} target="_blank" rel="noopener noreferrer" style={{
+                            <a href={item.url} target="_blank" rel="noopener noreferrer" style={{
                               fontSize: '15px', fontWeight: '500', color: '#1a2634',
                               textDecoration: 'none', display: 'block', marginBottom: '6px'
                             }}>
-                              {{item.priority === 'high' ? '🔴 ' : '🟡 '}}{{item.title}} ↗
+                              {item.priority === 'high' ? '🔴 ' : '🟡 '}{item.title} ↗
                             </a>
-                            <div style={{ fontSize: '13px', color: '#666' }}>
-                              {{item.source}} • {{item.date}}
-                              {{item.state && <span style={{ background: '#2d5a3d', color: 'white', padding: '1px 6px', borderRadius: '3px', fontSize: '11px', marginLeft: '8px' }}>{{item.state}}</span>}}
+                            <div style={{fontSize: '13px', color: '#666'}}>
+                              {item.source} • {item.date}
+                              {item.state && <span style={{background: '#2d5a3d', color: 'white', padding: '1px 6px', borderRadius: '3px', fontSize: '11px', marginLeft: '8px'}}>{item.state}</span>}
                             </div>
                           </div>
-                        ))}}
+                        ))}
                       </div>
                     );
-                  }})}}
-                </>
-              )}}
+                  })}
+                </div>
+              )}
 
-              {{activeTab === 'dcm' && (
-                <>
+              {activeTab === 'dcm' && (
+                <div>
                   <div style={{
                     background: 'linear-gradient(135deg, #1a2634 0%, #2d3e50 100%)',
                     borderRadius: '8px', padding: '20px 24px', marginBottom: '24px', color: 'white'
                   }}>
-                    <h2 style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '2px', color: '#c9a962', marginBottom: '8px' }}>
+                    <h2 style={{fontSize: '12px', textTransform: 'uppercase', letterSpacing: '2px', color: '#c9a962', marginBottom: '8px'}}>
                       🏛️ DCM Application Tracker
                     </h2>
-                    <p style={{ fontSize: '14px', color: '#a0a0a0', margin: 0 }}>
+                    <p style={{fontSize: '14px', color: '#a0a0a0', margin: 0}}>
                       Designated Contract Markets - Event Contracts & Prediction Markets
                     </p>
                   </div>
 
-                  <div style={{ background: 'white', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <div style={{background: 'white', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)'}}>
+                    <table style={{width: '100%', borderCollapse: 'collapse'}}>
                       <thead>
-                        <tr style={{ background: '#f5f5f0' }}>
-                          <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', textTransform: 'uppercase', color: '#666', borderBottom: '2px solid #e0e0e0' }}>Organization</th>
-                          <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', textTransform: 'uppercase', color: '#666', borderBottom: '2px solid #e0e0e0' }}>Status</th>
-                          <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', textTransform: 'uppercase', color: '#666', borderBottom: '2px solid #e0e0e0' }}>Last Update</th>
-                          <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', textTransform: 'uppercase', color: '#666', borderBottom: '2px solid #e0e0e0' }}>Links</th>
+                        <tr style={{background: '#f5f5f0'}}>
+                          <th style={{padding: '12px 16px', textAlign: 'left', fontSize: '12px', textTransform: 'uppercase', color: '#666', borderBottom: '2px solid #e0e0e0'}}>Organization</th>
+                          <th style={{padding: '12px 16px', textAlign: 'left', fontSize: '12px', textTransform: 'uppercase', color: '#666', borderBottom: '2px solid #e0e0e0'}}>Status</th>
+                          <th style={{padding: '12px 16px', textAlign: 'left', fontSize: '12px', textTransform: 'uppercase', color: '#666', borderBottom: '2px solid #e0e0e0'}}>Last Update</th>
+                          <th style={{padding: '12px 16px', textAlign: 'left', fontSize: '12px', textTransform: 'uppercase', color: '#666', borderBottom: '2px solid #e0e0e0'}}>Links</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {{DCM_DATA.map((dcm, idx) => (
-                          <tr key={{idx}} style={{ borderBottom: '1px solid #eee' }}>
-                            <td style={{ padding: '14px 16px' }}>
-                              <div style={{ fontWeight: '500' }}>{{dcm.organization}}</div>
-                              <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>{{dcm.remarks}}</div>
+                        {DCM_DATA.map((dcm, idx) => (
+                          <tr key={idx} style={{borderBottom: '1px solid #eee'}}>
+                            <td style={{padding: '14px 16px'}}>
+                              <div style={{fontWeight: '500'}}>{dcm.organization}</div>
+                              <div style={{fontSize: '12px', color: '#666', marginTop: '4px'}}>{dcm.remarks}</div>
                             </td>
-                            <td style={{ padding: '14px 16px' }}>
+                            <td style={{padding: '14px 16px'}}>
                               <span style={{
                                 background: dcm.status === 'Designated' ? '#2d5a3d' : '#d4a017',
                                 color: 'white', padding: '4px 10px', borderRadius: '4px', fontSize: '12px'
-                              }}>{{dcm.status}}</span>
+                              }}>{dcm.status}</span>
                             </td>
-                            <td style={{ padding: '14px 16px', fontSize: '13px', color: '#666' }}>{{dcm.statusDate}}</td>
-                            <td style={{ padding: '14px 16px' }}>
-                              <a href={{dcm.detailUrl}} target="_blank" style={{ color: '#1e3a5f', fontSize: '12px', marginRight: '12px' }}>CFTC Record ↗</a>
-                              {{dcm.orderPdfUrl && <a href={{dcm.orderPdfUrl}} target="_blank" style={{ color: '#c41e3a', fontSize: '12px' }}>Order ↗</a>}}
+                            <td style={{padding: '14px 16px', fontSize: '13px', color: '#666'}}>{dcm.statusDate}</td>
+                            <td style={{padding: '14px 16px'}}>
+                              <a href={dcm.detailUrl} target="_blank" style={{color: '#1e3a5f', fontSize: '12px', marginRight: '12px'}}>CFTC Record ↗</a>
+                              {dcm.orderPdfUrl && <a href={dcm.orderPdfUrl} target="_blank" style={{color: '#c41e3a', fontSize: '12px'}}>Order ↗</a>}
                             </td>
                           </tr>
-                        ))}}
+                        ))}
                       </tbody>
                     </table>
                   </div>
 
-                  <div style={{ marginTop: '16px', fontSize: '12px', color: '#666' }}>
-                    Source: <a href="https://sirt.cftc.gov/sirt/sirt.aspx?Topic=TradingOrganizations" target="_blank" style={{ color: '#1e3a5f' }}>CFTC SIRT Database</a>
+                  <div style={{marginTop: '16px', fontSize: '12px', color: '#666'}}>
+                    Source: <a href="https://sirt.cftc.gov/sirt/sirt.aspx?Topic=TradingOrganizations" target="_blank" style={{color: '#1e3a5f'}}>CFTC SIRT Database</a>
                   </div>
-                </>
-              )}}
+                </div>
+              )}
             </main>
           </div>
 
-          {{/* Footer */}}
+          {/* Footer */}
           <footer style={{
             background: '#1a2634', color: '#666', padding: '12px 24px', fontSize: '11px',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center'
@@ -728,13 +683,18 @@ html_content = f"""
           </footer>
         </div>
       );
-    }}
+    }
 
     ReactDOM.render(<App />, document.getElementById('root'));
   </script>
 </body>
 </html>
-"""
+'''
 
-# Render the HTML
-st.components.v1.html(html_content, height=900, scrolling=True)
+# Replace placeholders with actual data
+html_content = html_template.replace('__ARTICLES_JSON__', articles_json)
+html_content = html_content.replace('__DCM_JSON__', dcm_json)
+html_content = html_content.replace('__LAST_UPDATED__', last_updated)
+
+# Render
+components.html(html_content, height=900, scrolling=True)
