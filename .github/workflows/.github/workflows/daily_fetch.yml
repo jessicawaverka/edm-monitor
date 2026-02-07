@@ -1,0 +1,63 @@
+name: Daily EDM Monitor Fetch
+
+on:
+  schedule:
+    # Run at 9:00 AM ET (14:00 UTC) Monday-Friday
+    - cron: '0 14 * * 1-5'
+  
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  fetch-and-create-pr:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install feedparser requests
+      
+      - name: Run fetch script
+        run: python fetch_data.py
+      
+      - name: Check for changes
+        id: changes
+        run: |
+          if [ -f data_draft.csv ]; then
+            ITEM_COUNT=$(tail -n +2 data_draft.csv | wc -l)
+            HIGH_PRIORITY=$(grep -c ",high," data_draft.csv || echo "0")
+            echo "items=$ITEM_COUNT" >> $GITHUB_OUTPUT
+            echo "high_priority=$HIGH_PRIORITY" >> $GITHUB_OUTPUT
+            echo "has_data=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_data=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Create Pull Request
+        if: steps.changes.outputs.has_data == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "📊 Daily data update - ${{ steps.changes.outputs.items }} items"
+          title: "📊 Review: ${{ steps.changes.outputs.items }} items found"
+          body: |
+            ## Daily EDM Monitor Update
+            
+            ### Summary
+            - **Total Items:** ${{ steps.changes.outputs.items }}
+            - **High Priority:** ${{ steps.changes.outputs.high_priority }}
+            
+            ### To Approve
+            1. Review the changes in `data_draft.csv`
+            2. If everything looks good, **merge this PR**
+            3. The data will automatically become live
+          branch: daily-update-${{ github.run_number }}
+          delete-branch: true
