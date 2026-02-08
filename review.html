@@ -334,6 +334,7 @@
 
       <!-- Toolbar -->
       <div class="toolbar">
+        <button class="btn-add" onclick="addNewItem()" style="background:#8b5cf6;color:white;">+ Add New Item</button>
         <button class="btn-approve" onclick="approveSelected()">✓ Approve Selected</button>
         <button class="btn-approve" onclick="approveAllTier1()">✓ Approve All Tier 1</button>
         <button class="btn-reject" onclick="rejectSelected()">✗ Reject Selected</button>
@@ -640,26 +641,55 @@
       }
     }
     
+    // Add new item
+    function addNewItem() {
+      const newId = 'manual-' + Date.now();
+      document.getElementById('edit-id').value = newId;
+      document.getElementById('edit-title').value = '';
+      document.getElementById('edit-source').value = '';
+      document.getElementById('edit-category').value = 'federal';
+      document.getElementById('edit-tier').value = '1';
+      document.getElementById('edit-priority').value = 'medium';
+      document.getElementById('edit-state').value = '';
+      document.getElementById('edit-url').value = '';
+      document.getElementById('edit-modal').classList.remove('hidden');
+      document.querySelector('.edit-modal-content h3').textContent = 'Add New Item';
+    }
+    
     function saveEdit() {
       const id = document.getElementById('edit-id').value;
-      const item = items.find(i => i.id === id);
-      if (item) {
-        item.title = document.getElementById('edit-title').value;
-        item.source = document.getElementById('edit-source').value;
-        item.category = document.getElementById('edit-category').value;
-        item.tier = document.getElementById('edit-tier').value;
-        item.priority = document.getElementById('edit-priority').value;
-        item.state = document.getElementById('edit-state').value;
-        item.url = document.getElementById('edit-url').value;
-        closeEditModal();
-        applyFilters();
-        updateStats();
+      let item = items.find(i => i.id === id);
+      
+      // If not found, it's a new item
+      if (!item) {
+        item = {
+          id: id,
+          date: new Date().toISOString().split('T')[0],
+          status: 'approved',
+          needs_primary_source: 'False'
+        };
+        items.unshift(item);
       }
+      
+      item.title = document.getElementById('edit-title').value;
+      item.source = document.getElementById('edit-source').value;
+      item.category = document.getElementById('edit-category').value;
+      item.tier = document.getElementById('edit-tier').value;
+      item.priority = document.getElementById('edit-priority').value;
+      item.state = document.getElementById('edit-state').value;
+      item.url = document.getElementById('edit-url').value;
+      
+      document.querySelector('.edit-modal-content h3').textContent = 'Edit Item';
+      closeEditModal();
+      applyFilters();
+      updateStats();
+      showMessage('Item saved!', 'success');
     }
     
     function closeEditModal(event) {
       if (!event || event.target === document.getElementById('edit-modal')) {
         document.getElementById('edit-modal').classList.add('hidden');
+        document.querySelector('.edit-modal-content h3').textContent = 'Edit Item';
       }
     }
     
