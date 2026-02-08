@@ -1,10 +1,8 @@
 name: Daily EDM Monitor Fetch
-
 on:
   schedule:
     - cron: '0 14 * * 1-5'
   workflow_dispatch:
-
 jobs:
   fetch-and-create-pr:
     runs-on: ubuntu-latest
@@ -18,9 +16,9 @@ jobs:
         with:
           python-version: '3.11'
       
-- name: Install dependencies
-  run: |
-    pip install feedparser requests beautifulsoup4 lxml
+      - name: Install dependencies
+        run: |
+          pip install feedparser requests beautifulsoup4 lxml
       
       - name: Run fetch script
         run: python fetch_data_v9.py
