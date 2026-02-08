@@ -1,10 +1,15 @@
 name: Daily EDM Monitor Fetch
+
 on:
   schedule:
-    - cron: '0 14 * * 1-5'
-  workflow_dispatch:
+    # 7 AM ET (12:00 UTC) - Morning run
+    - cron: '0 12 * * 1-5'
+    # 2 PM ET (19:00 UTC) - Afternoon run
+    - cron: '0 19 * * 1-5'
+  workflow_dispatch:  # Manual trigger
+
 jobs:
-  fetch-and-create-pr:
+  fetch-and-notify:
     runs-on: ubuntu-latest
     
     steps:
@@ -21,19 +26,68 @@ jobs:
           pip install feedparser requests beautifulsoup4 lxml
       
       - name: Run fetch script
-        run: python fetch_data_v10.py
+        id: fetch
+        run: |
+          python fetch_data_v10.py
+          
+          # Count items and high priority
+          if [ -f data_draft.csv ]; then
+            TOTAL=$(tail -n +2 data_draft.csv | wc -l)
+            HIGH=$(grep -i ",high," data_draft.csv | wc -l || echo "0")
+            TIER1=$(grep ",1," data_draft.csv | wc -l || echo "0")
+            
+            echo "total=$TOTAL" >> $GITHUB_OUTPUT
+            echo "high=$HIGH" >> $GITHUB_OUTPUT
+            echo "tier1=$TIER1" >> $GITHUB_OUTPUT
+            
+            # Get high priority titles for email
+            HIGH_ITEMS=$(grep -i ",high," data_draft.csv | cut -d',' -f6 | head -5 | sed 's/"//g' || echo "None")
+            echo "high_items<<EOF" >> $GITHUB_OUTPUT
+            echo "$HIGH_ITEMS" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "total=0" >> $GITHUB_OUTPUT
+            echo "high=0" >> $GITHUB_OUTPUT
+            echo "tier1=0" >> $GITHUB_OUTPUT
+            echo "high_items=None" >> $GITHUB_OUTPUT
+          fi
       
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
+      - name: Commit draft data
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add data_draft.csv data_draft.json || true
+          git commit -m "📊 Daily data update - ${{ steps.fetch.outputs.total }} items (${{ steps.fetch.outputs.high }} high priority)" || echo "No changes"
+          git push || echo "Nothing to push"
+      
+      - name: Send email notification
+        if: steps.fetch.outputs.total != '0'
+        uses: dawidd6/action-send-mail@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "📊 Daily data update"
-          title: "📊 Review: New regulatory items found"
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "🚨 EDM Monitor: ${{ steps.fetch.outputs.total }} new items (${{ steps.fetch.outputs.high }} high priority)"
+          to: jessica.waverka@gmail.com
+          from: EDM Monitor <edm-monitor@noreply.com>
           body: |
-            ## Daily EDM Monitor Update
+            EDM Monitor Update
+            ==================
             
-            Review the data in `data_draft.csv` and `data_draft.json`
+            📊 NEW ITEMS FOUND: ${{ steps.fetch.outputs.total }}
+            🚨 HIGH PRIORITY: ${{ steps.fetch.outputs.high }}
+            🏛️ TIER 1 (Government): ${{ steps.fetch.outputs.tier1 }}
             
-            **To publish:** Merge this PR
-          branch: daily-update-${{ github.run_number }}
-          delete-branch: true
+            HIGH PRIORITY ITEMS:
+            ${{ steps.fetch.outputs.high_items }}
+            
+            ---
+            
+            👉 REVIEW NOW: https://jessicawaverka.github.io/edm-monitor/review.html
+            
+            📊 DASHBOARD: https://jessicawaverka.github.io/edm-monitor/
+            
+            ---
+            This is an automated alert from your EDM Monitor.
+            Runs at 7 AM ET and 2 PM ET, Monday-Friday.
