@@ -22,7 +22,7 @@ jobs:
         run: pip install feedparser requests
       
       - name: Run fetch script
-        run: python fetch_data.py
+        run: python fetch_data_v9.py
       
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
