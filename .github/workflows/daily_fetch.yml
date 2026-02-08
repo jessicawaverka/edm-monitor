@@ -18,8 +18,9 @@ jobs:
         with:
           python-version: '3.11'
       
-      - name: Install dependencies
-        run: pip install feedparser requests
+- name: Install dependencies
+  run: |
+    pip install feedparser requests beautifulsoup4 lxml
       
       - name: Run fetch script
         run: python fetch_data_v9.py
