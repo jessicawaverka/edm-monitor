@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EDM Monitor - Review Editor</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+      background: #f5f5f5; 
+      padding: 20px;
+    }
+    .container { max-width: 1400px; margin: 0 auto; }
+    
+    header {
+      background: linear-gradient(135deg, #1a2634 0%, #2d3e50 100%);
+      color: white;
+      padding: 20px 30px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 { font-size: 24px; font-weight: 600; }
+    header .subtitle { opacity: 0.8; font-size: 14px; margin-top: 4px; }
+    
+    .auth-section {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .auth-section h3 { margin-bottom: 15px; color: #1a2634; }
+    .auth-section input {
+      width: 100%;
+      max-width: 500px;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+    .auth-section button {
+      background: #1a2634;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .auth-section button:hover { background: #2d3e50; }
+    .auth-section .help-text {
+      font-size: 12px;
+      color: #666;
+      margin-top: 10px;
+    }
+    .auth-section a { color: #0066cc; }
+    
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: white;
+      padding: 15px 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .stat-card .number { font-size: 28px; font-weight: 700; color: #1a2634; }
+    .stat-card .label { font-size: 12px; color: #666; margin-top: 4px; }
+    .stat-card.high .number { color: #c41e3a; }
+    .stat-card.pending .number { color: #f59e0b; }
+    .stat-card.approved .number { color: #10b981; }
+    
+    .toolbar {
+      background: white;
+      padding: 15px 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .toolbar button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .toolbar .btn-approve { background: #10b981; color: white; }
+    .toolbar .btn-approve:hover { background: #059669; }
+    .toolbar .btn-reject { background: #ef4444; color: white; }
+    .toolbar .btn-reject:hover { background: #dc2626; }
+    .toolbar .btn-save { background: #1a2634; color: white; }
+    .toolbar .btn-save:hover { background: #2d3e50; }
+    .toolbar .btn-secondary { background: #e5e7eb; color: #374151; }
+    .toolbar .btn-secondary:hover { background: #d1d5db; }
+    
+    .filters {
+      display: flex;
+      gap: 10px;
+      margin-left: auto;
+      align-items: center;
+    }
+    .filters select, .filters input {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    
+    .items-list {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    
+    .item {
+      padding: 15px 20px;
+      border-bottom: 1px solid #eee;
+      display: grid;
+      grid-template-columns: 40px 1fr auto;
+      gap: 15px;
+      align-items: start;
+      transition: background 0.2s;
+    }
+    .item:hover { background: #f9fafb; }
+    .item.approved { background: #ecfdf5; }
+    .item.rejected { background: #fef2f2; opacity: 0.6; }
+    .item.rejected .item-title { text-decoration: line-through; }
+    
+    .item-checkbox {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      margin-top: 2px;
+    }
+    
+    .item-content { flex: 1; }
+    .item-title {
+      font-weight: 500;
+      color: #1a2634;
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
+    .item-title a { color: inherit; text-decoration: none; }
+    .item-title a:hover { text-decoration: underline; }
+    
+    .item-meta {
+      display: flex;
+      gap: 12px;
+      font-size: 12px;
+      color: #666;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .item-meta .tag {
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+    .tag-tier1 { background: #dbeafe; color: #1e40af; }
+    .tag-tier2 { background: #fef3c7; color: #92400e; }
+    .tag-tier3 { background: #e5e7eb; color: #374151; }
+    .tag-high { background: #fee2e2; color: #991b1b; }
+    .tag-federal { background: #dbeafe; color: #1e40af; }
+    .tag-state { background: #d1fae5; color: #065f46; }
+    .tag-enforcement { background: #fee2e2; color: #991b1b; }
+    .tag-courts { background: #ede9fe; color: #5b21b6; }
+    .tag-trade { background: #fef3c7; color: #92400e; }
+    .tag-participants { background: #cffafe; color: #0e7490; }
+    .tag-news { background: #f3f4f6; color: #374151; }
+    
+    .item-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .item-actions button {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .item-actions .btn-sm-approve { background: #d1fae5; color: #065f46; }
+    .item-actions .btn-sm-approve:hover { background: #a7f3d0; }
+    .item-actions .btn-sm-reject { background: #fee2e2; color: #991b1b; }
+    .item-actions .btn-sm-reject:hover { background: #fecaca; }
+    .item-actions .btn-sm-edit { background: #e5e7eb; color: #374151; }
+    .item-actions .btn-sm-edit:hover { background: #d1d5db; }
+    
+    .loading {
+      text-align: center;
+      padding: 60px;
+      color: #666;
+    }
+    .loading .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #e5e7eb;
+      border-top-color: #1a2634;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    
+    .message {
+      padding: 15px 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-weight: 500;
+    }
+    .message.success { background: #d1fae5; color: #065f46; }
+    .message.error { background: #fee2e2; color: #991b1b; }
+    .message.info { background: #dbeafe; color: #1e40af; }
+    
+    .edit-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .edit-modal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .edit-modal h3 { margin-bottom: 20px; }
+    .edit-modal label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+      font-size: 14px;
+    }
+    .edit-modal input, .edit-modal select, .edit-modal textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      font-size: 14px;
+    }
+    .edit-modal textarea { min-height: 80px; resize: vertical; }
+    .edit-modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 20px;
+    }
+    
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>📋 EDM Monitor - Review Editor</h1>
+        <div class="subtitle">Review, approve, and publish regulatory developments</div>
+      </div>
+      <div id="connection-status"></div>
+    </header>
+
+    <!-- Auth Section -->
+    <div id="auth-section" class="auth-section">
+      <h3>🔐 Connect to GitHub</h3>
+      <p style="margin-bottom: 15px; color: #666;">Enter your GitHub Personal Access Token to load and save data directly.</p>
+      <input type="password" id="github-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+      <br>
+      <button onclick="connectGitHub()">Connect & Load Data</button>
+      <div class="help-text">
+        <strong>How to get a token:</strong><br>
+        1. Go to <a href="https://github.com/settings/tokens/new" target="_blank">GitHub → Settings → Developer Settings → Personal Access Tokens → Tokens (classic)</a><br>
+        2. Click "Generate new token (classic)"<br>
+        3. Give it a name like "EDM Review Editor"<br>
+        4. Select scope: <strong>repo</strong> (full control of private repositories)<br>
+        5. Click "Generate token" and paste it above
+      </div>
+    </div>
+
+    <!-- Message Area -->
+    <div id="message" class="message hidden"></div>
+
+    <!-- Main Content (hidden until authenticated) -->
+    <div id="main-content" class="hidden">
+      <!-- Stats -->
+      <div class="stats-bar">
+        <div class="stat-card">
+          <div class="number" id="stat-total">0</div>
+          <div class="label">Total Items</div>
+        </div>
+        <div class="stat-card pending">
+          <div class="number" id="stat-pending">0</div>
+          <div class="label">Pending Review</div>
+        </div>
+        <div class="stat-card approved">
+          <div class="number" id="stat-approved">0</div>
+          <div class="label">Approved</div>
+        </div>
+        <div class="stat-card high">
+          <div class="number" id="stat-high">0</div>
+          <div class="label">High Priority</div>
+        </div>
+        <div class="stat-card">
+          <div class="number" id="stat-tier1">0</div>
+          <div class="label">Tier 1 (Gov)</div>
+        </div>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <button class="btn-approve" onclick="approveSelected()">✓ Approve Selected</button>
+        <button class="btn-approve" onclick="approveAllTier1()">✓ Approve All Tier 1</button>
+        <button class="btn-reject" onclick="rejectSelected()">✗ Reject Selected</button>
+        <button class="btn-secondary" onclick="selectAll()">Select All</button>
+        <button class="btn-secondary" onclick="selectNone()">Select None</button>
+        
+        <div class="filters">
+          <select id="filter-status" onchange="applyFilters()">
+            <option value="">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          <select id="filter-tier" onchange="applyFilters()">
+            <option value="">All Tiers</option>
+            <option value="1">Tier 1</option>
+            <option value="2">Tier 2</option>
+            <option value="3">Tier 3</option>
+          </select>
+          <select id="filter-category" onchange="applyFilters()">
+            <option value="">All Categories</option>
+            <option value="federal">Federal</option>
+            <option value="state">State</option>
+            <option value="enforcement">Enforcement</option>
+            <option value="courts">Courts</option>
+            <option value="trade">Trade</option>
+            <option value="participants">Participants</option>
+            <option value="news">News</option>
+          </select>
+          <input type="text" id="filter-search" placeholder="Search..." onkeyup="applyFilters()">
+        </div>
+        
+        <button class="btn-save" onclick="saveToGitHub()">💾 Save & Publish</button>
+      </div>
+
+      <!-- Items List -->
+      <div id="items-list" class="items-list">
+        <div class="loading">
+          <div class="spinner"></div>
+          Loading data...
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="edit-modal hidden" onclick="closeEditModal(event)">
+      <div class="edit-modal-content" onclick="event.stopPropagation()">
+        <h3>Edit Item</h3>
+        <input type="hidden" id="edit-id">
+        <label>Title</label>
+        <textarea id="edit-title"></textarea>
+        <label>Source</label>
+        <input type="text" id="edit-source">
+        <label>Category</label>
+        <select id="edit-category">
+          <option value="federal">Federal Regulatory</option>
+          <option value="state">State Actions</option>
+          <option value="enforcement">Enforcement</option>
+          <option value="courts">Courts & Litigation</option>
+          <option value="trade">Trade Associations</option>
+          <option value="participants">Market Participants</option>
+          <option value="news">News Coverage</option>
+        </select>
+        <label>Tier</label>
+        <select id="edit-tier">
+          <option value="1">Tier 1 - Government Primary</option>
+          <option value="2">Tier 2 - Industry Official</option>
+          <option value="3">Tier 3 - News Coverage</option>
+        </select>
+        <label>Priority</label>
+        <select id="edit-priority">
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <label>State</label>
+        <input type="text" id="edit-state" placeholder="e.g., MA, NY, NV">
+        <label>URL</label>
+        <input type="url" id="edit-url">
+        <div class="edit-modal-actions">
+          <button class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+          <button class="btn-save" onclick="saveEdit()">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Configuration
+    const REPO_OWNER = 'jessicawaverka';
+    const REPO_NAME = 'edm-monitor';
+    const DATA_FILE = 'data.csv';
+    const DRAFT_FILE = 'data_draft.csv';
+    
+    // State
+    let githubToken = '';
+    let items = [];
+    let filteredItems = [];
+    
+    // Check for saved token
+    const savedToken = localStorage.getItem('edm-github-token');
+    if (savedToken) {
+      document.getElementById('github-token').value = savedToken;
+    }
+    
+    // Connect to GitHub
+    async function connectGitHub() {
+      githubToken = document.getElementById('github-token').value.trim();
+      if (!githubToken) {
+        showMessage('Please enter a GitHub token', 'error');
+        return;
+      }
+      
+      // Save token
+      localStorage.setItem('edm-github-token', githubToken);
+      
+      try {
+        showMessage('Connecting to GitHub...', 'info');
+        
+        // Try to load draft first, then published data
+        let data = await loadFile(DRAFT_FILE);
+        if (!data) {
+          data = await loadFile(DATA_FILE);
+        }
+        
+        if (data) {
+          items = parseCSV(data);
+          // Initialize status for items without it
+          items.forEach(item => {
+            if (!item.status) item.status = 'pending';
+          });
+          
+          document.getElementById('auth-section').classList.add('hidden');
+          document.getElementById('main-content').classList.remove('hidden');
+          document.getElementById('connection-status').innerHTML = '🟢 Connected';
+          
+          applyFilters();
+          updateStats();
+          showMessage(`Loaded ${items.length} items`, 'success');
+        } else {
+          showMessage('No data files found in repository', 'error');
+        }
+      } catch (err) {
+        showMessage(`Error: ${err.message}`, 'error');
+      }
+    }
+    
+    // Load file from GitHub
+    async function loadFile(filename) {
+      try {
+        const response = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filename}`, {
+          headers: {
+            'Authorization': `token ${githubToken}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          return atob(data.content);
+        }
+        return null;
+      } catch (err) {
+        console.error(`Error loading ${filename}:`, err);
+        return null;
+      }
+    }
+    
+    // Parse CSV
+    function parseCSV(csv) {
+      const lines = csv.trim().split('\n');
+      if (lines.length < 2) return [];
+      
+      const headers = lines[0].split(',').map(h => h.trim());
+      const result = [];
+      
+      for (let i = 1; i < lines.length; i++) {
+        const values = parseCSVLine(lines[i]);
+        const obj = {};
+        headers.forEach((h, idx) => {
+          obj[h] = values[idx] || '';
+        });
+        if (obj.title && obj.url) {
+          obj.status = obj.status || 'pending';
+          result.push(obj);
+        }
+      }
+      return result;
+    }
+    
+    // Parse CSV line (handles quotes)
+    function parseCSVLine(line) {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      result.push(current.trim());
+      return result;
+    }
+    
+    // Apply filters
+    function applyFilters() {
+      const status = document.getElementById('filter-status').value;
+      const tier = document.getElementById('filter-tier').value;
+      const category = document.getElementById('filter-category').value;
+      const search = document.getElementById('filter-search').value.toLowerCase();
+      
+      filteredItems = items.filter(item => {
+        if (status && item.status !== status) return false;
+        if (tier && String(item.tier) !== tier) return false;
+        if (category && item.category !== category) return false;
+        if (search && !item.title.toLowerCase().includes(search) && !item.source.toLowerCase().includes(search)) return false;
+        return true;
+      });
+      
+      renderItems();
+    }
+    
+    // Render items
+    function renderItems() {
+      const container = document.getElementById('items-list');
+      
+      if (filteredItems.length === 0) {
+        container.innerHTML = '<div class="loading">No items match your filters</div>';
+        return;
+      }
+      
+      container.innerHTML = filteredItems.map((item, idx) => `
+        <div class="item ${item.status}" data-id="${item.id}">
+          <input type="checkbox" class="item-checkbox" data-id="${item.id}">
+          <div class="item-content">
+            <div class="item-title">
+              <a href="${item.url}" target="_blank">${item.title}</a>
+            </div>
+            <div class="item-meta">
+              <span class="tag tag-tier${item.tier}">Tier ${item.tier}</span>
+              <span class="tag tag-${item.category}">${item.category}</span>
+              ${item.priority === 'high' ? '<span class="tag tag-high">HIGH</span>' : ''}
+              <span>${item.source}</span>
+              <span>${item.date}</span>
+              ${item.state ? `<span>📍 ${item.state}</span>` : ''}
+            </div>
+          </div>
+          <div class="item-actions">
+            <button class="btn-sm-approve" onclick="approveItem('${item.id}')">✓</button>
+            <button class="btn-sm-reject" onclick="rejectItem('${item.id}')">✗</button>
+            <button class="btn-sm-edit" onclick="editItem('${item.id}')">✏️</button>
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    // Update stats
+    function updateStats() {
+      document.getElementById('stat-total').textContent = items.length;
+      document.getElementById('stat-pending').textContent = items.filter(i => i.status === 'pending').length;
+      document.getElementById('stat-approved').textContent = items.filter(i => i.status === 'approved').length;
+      document.getElementById('stat-high').textContent = items.filter(i => i.priority === 'high').length;
+      document.getElementById('stat-tier1').textContent = items.filter(i => String(i.tier) === '1').length;
+    }
+    
+    // Item actions
+    function approveItem(id) {
+      const item = items.find(i => i.id === id);
+      if (item) {
+        item.status = 'approved';
+        applyFilters();
+        updateStats();
+      }
+    }
+    
+    function rejectItem(id) {
+      const item = items.find(i => i.id === id);
+      if (item) {
+        item.status = 'rejected';
+        applyFilters();
+        updateStats();
+      }
+    }
+    
+    function editItem(id) {
+      const item = items.find(i => i.id === id);
+      if (item) {
+        document.getElementById('edit-id').value = item.id;
+        document.getElementById('edit-title').value = item.title;
+        document.getElementById('edit-source').value = item.source;
+        document.getElementById('edit-category').value = item.category;
+        document.getElementById('edit-tier').value = item.tier;
+        document.getElementById('edit-priority').value = item.priority;
+        document.getElementById('edit-state').value = item.state || '';
+        document.getElementById('edit-url').value = item.url;
+        document.getElementById('edit-modal').classList.remove('hidden');
+      }
+    }
+    
+    function saveEdit() {
+      const id = document.getElementById('edit-id').value;
+      const item = items.find(i => i.id === id);
+      if (item) {
+        item.title = document.getElementById('edit-title').value;
+        item.source = document.getElementById('edit-source').value;
+        item.category = document.getElementById('edit-category').value;
+        item.tier = document.getElementById('edit-tier').value;
+        item.priority = document.getElementById('edit-priority').value;
+        item.state = document.getElementById('edit-state').value;
+        item.url = document.getElementById('edit-url').value;
+        closeEditModal();
+        applyFilters();
+        updateStats();
+      }
+    }
+    
+    function closeEditModal(event) {
+      if (!event || event.target === document.getElementById('edit-modal')) {
+        document.getElementById('edit-modal').classList.add('hidden');
+      }
+    }
+    
+    // Bulk actions
+    function getSelectedIds() {
+      return Array.from(document.querySelectorAll('.item-checkbox:checked'))
+        .map(cb => cb.dataset.id);
+    }
+    
+    function approveSelected() {
+      const ids = getSelectedIds();
+      ids.forEach(id => {
+        const item = items.find(i => i.id === id);
+        if (item) item.status = 'approved';
+      });
+      applyFilters();
+      updateStats();
+      showMessage(`Approved ${ids.length} items`, 'success');
+    }
+    
+    function rejectSelected() {
+      const ids = getSelectedIds();
+      ids.forEach(id => {
+        const item = items.find(i => i.id === id);
+        if (item) item.status = 'rejected';
+      });
+      applyFilters();
+      updateStats();
+      showMessage(`Rejected ${ids.length} items`, 'success');
+    }
+    
+    function approveAllTier1() {
+      let count = 0;
+      items.forEach(item => {
+        if (String(item.tier) === '1' && item.status === 'pending') {
+          item.status = 'approved';
+          count++;
+        }
+      });
+      applyFilters();
+      updateStats();
+      showMessage(`Approved ${count} Tier 1 items`, 'success');
+    }
+    
+    function selectAll() {
+      document.querySelectorAll('.item-checkbox').forEach(cb => cb.checked = true);
+    }
+    
+    function selectNone() {
+      document.querySelectorAll('.item-checkbox').forEach(cb => cb.checked = false);
+    }
+    
+    // Save to GitHub
+    async function saveToGitHub() {
+      const approved = items.filter(i => i.status === 'approved');
+      
+      if (approved.length === 0) {
+        showMessage('No approved items to save', 'error');
+        return;
+      }
+      
+      showMessage('Saving to GitHub...', 'info');
+      
+      try {
+        // Build CSV
+        const headers = ['id', 'date', 'tier', 'priority', 'category', 'title', 'source', 'state', 'url', 'needs_primary_source'];
+        const rows = approved.map(item => [
+          item.id,
+          item.date,
+          item.tier,
+          item.priority,
+          item.category,
+          `"${(item.title || '').replace(/"/g, '""')}"`,
+          item.source,
+          item.state || '',
+          item.url,
+          item.needs_primary_source || 'False'
+        ]);
+        
+        const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        
+        // Get current file SHA
+        const fileResponse = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DATA_FILE}`, {
+          headers: {
+            'Authorization': `token ${githubToken}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        });
+        
+        let sha = null;
+        if (fileResponse.ok) {
+          const fileData = await fileResponse.json();
+          sha = fileData.sha;
+        }
+        
+        // Update file
+        const updateResponse = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DATA_FILE}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `token ${githubToken}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message: `✅ Published approved data (${approved.length} items)`,
+            content: btoa(unescape(encodeURIComponent(csv))),
+            sha: sha
+          })
+        });
+        
+        if (updateResponse.ok) {
+          // Also save seen URLs
+          const seenUrls = items.map(i => i.url).join('\n');
+          await saveSeenUrls(seenUrls);
+          
+          showMessage(`✅ Published ${approved.length} items to dashboard!`, 'success');
+        } else {
+          const err = await updateResponse.json();
+          showMessage(`Error: ${err.message}`, 'error');
+        }
+      } catch (err) {
+        showMessage(`Error: ${err.message}`, 'error');
+      }
+    }
+    
+    // Save seen URLs
+    async function saveSeenUrls(content) {
+      try {
+        const fileResponse = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/seen_urls.txt`, {
+          headers: {
+            'Authorization': `token ${githubToken}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        });
+        
+        let sha = null;
+        let existingContent = '';
+        if (fileResponse.ok) {
+          const fileData = await fileResponse.json();
+          sha = fileData.sha;
+          existingContent = atob(fileData.content);
+        }
+        
+        // Merge new URLs with existing
+        const existingUrls = new Set(existingContent.split('\n').map(u => u.trim()).filter(u => u && !u.startsWith('#')));
+        content.split('\n').forEach(u => existingUrls.add(u.trim()));
+        
+        const newContent = '# EDM Monitor - Seen URLs\n# Auto-updated by review editor\n\n' + 
+          Array.from(existingUrls).filter(u => u).join('\n');
+        
+        await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/seen_urls.txt`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `token ${githubToken}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message: '📝 Updated seen URLs',
+            content: btoa(unescape(encodeURIComponent(newContent))),
+            sha: sha
+          })
+        });
+      } catch (err) {
+        console.error('Error saving seen URLs:', err);
+      }
+    }
+    
+    // Show message
+    function showMessage(text, type) {
+      const msg = document.getElementById('message');
+      msg.textContent = text;
+      msg.className = `message ${type}`;
+      msg.classList.remove('hidden');
+      
+      if (type === 'success') {
+        setTimeout(() => msg.classList.add('hidden'), 3000);
+      }
+    }
+  </script>
+</body>
+</html>
