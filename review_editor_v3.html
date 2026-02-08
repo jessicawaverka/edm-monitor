@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EDM Monitor - Review & Edit v3</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+    .header {
+      background: linear-gradient(135deg, #1a2634 0%, #2d3e50 100%);
+      color: white;
+      padding: 20px 30px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+    .header h1 { font-size: 24px; margin-bottom: 5px; }
+    .header p { color: #a0a0a0; font-size: 14px; }
+    .header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-primary { background: #c9a962; color: #1a2634; }
+    .btn-primary:hover { background: #d4b97a; }
+    .btn-success { background: #2d5a3d; color: white; }
+    .btn-success:hover { background: #1e4a2d; }
+    .btn-danger { background: #c41e3a; color: white; }
+    .btn-danger:hover { background: #a01830; }
+    .btn-secondary { background: #666; color: white; }
+    .btn-secondary:hover { background: #555; }
+    .btn-info { background: #0077b6; color: white; }
+    .btn-info:hover { background: #005f8f; }
+    .btn-warning { background: #e67e22; color: white; }
+    .btn-warning:hover { background: #d35400; }
+    .stats {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .stat-card {
+      background: white;
+      padding: 15px 20px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      min-width: 100px;
+    }
+    .stat-card .number { font-size: 28px; font-weight: 700; color: #1a2634; }
+    .stat-card .label { font-size: 11px; color: #666; text-transform: uppercase; }
+    .stat-card.approved .number { color: #2d5a3d; }
+    .stat-card.rejected .number { color: #c41e3a; }
+    .stat-card.needs-primary .number { color: #d4a017; }
+    .filters {
+      background: white;
+      padding: 15px 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .filters label { font-size: 13px; color: #666; }
+    .filters select, .filters input {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .bulk-actions {
+      background: #e8f4e8;
+      padding: 10px 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .bulk-actions span { font-size: 14px; color: #2d5a3d; font-weight: 500; }
+    .table-container {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      overflow-x: auto;
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 1000px; }
+    th {
+      background: #f9f9f9;
+      padding: 12px 10px;
+      text-align: left;
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #666;
+      border-bottom: 2px solid #eee;
+      position: sticky;
+      top: 0;
+    }
+    td {
+      padding: 10px;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 13px;
+      vertical-align: top;
+    }
+    tr:hover { background: #fafafa; }
+    tr.rejected { background: #fff5f5; opacity: 0.6; }
+    tr.approved { background: #f5fff5; }
+    tr.needs-primary { background: #fffef5; }
+    .priority-high { background: #c41e3a; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; }
+    .priority-medium { background: #d4a017; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; }
+    .priority-low { background: #999; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; }
+    .tier-badge { padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 500; }
+    .tier-1 { background: #1e3a5f; color: white; }
+    .tier-2 { background: #2d5a3d; color: white; }
+    .tier-3 { background: #666; color: white; }
+    .title-cell { max-width: 350px; }
+    .title-cell a { color: #1a2634; text-decoration: none; font-weight: 500; }
+    .title-cell a:hover { color: #c41e3a; text-decoration: underline; }
+    .source { font-size: 11px; color: #888; margin-top: 2px; }
+    .needs-primary-badge { background: #fff3cd; color: #856404; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 5px; }
+    .action-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+    .action-btn { padding: 4px 8px; border: none; border-radius: 4px; font-size: 11px; cursor: pointer; }
+    .action-btn.approve { background: #d4edda; color: #155724; }
+    .action-btn.reject { background: #f8d7da; color: #721c24; }
+    .action-btn.edit { background: #fff3cd; color: #856404; }
+    .action-btn.find-primary { background: #cce5ff; color: #004085; }
+    .action-btn.undo { background: #e2e3e5; color: #383d41; }
+    .status-approved { color: #2d5a3d; font-weight: 600; }
+    .status-rejected { color: #c41e3a; font-weight: 600; }
+    .checkbox-cell { width: 30px; }
+    .checkbox-cell input { width: 16px; height: 16px; cursor: pointer; }
+    
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      width: 90%;
+      max-width: 700px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal h2 { margin-bottom: 20px; }
+    .modal label { display: block; margin-bottom: 5px; font-weight: 500; color: #333; }
+    .modal input, .modal select, .modal textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-bottom: 15px;
+    }
+    .modal textarea { height: 80px; resize: vertical; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+    
+    .suggested-sources {
+      background: #e7f3ff;
+      border: 1px solid #b3d7ff;
+      border-radius: 6px;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+    .suggested-sources h4 { font-size: 13px; color: #004085; margin-bottom: 10px; }
+    .suggested-link {
+      display: block;
+      padding: 8px 12px;
+      background: white;
+      border-radius: 4px;
+      margin-bottom: 5px;
+      color: #0077b6;
+      text-decoration: none;
+      font-size: 13px;
+    }
+    .suggested-link:hover { background: #f0f7ff; }
+    .use-this-btn {
+      float: right;
+      background: #0077b6;
+      color: white;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    
+    .instructions {
+      background: #e7f3ff;
+      border: 1px solid #b3d7ff;
+      padding: 15px 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+    .instructions strong { color: #004085; }
+    
+    .export-section {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      padding: 15px 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+    .export-section h3 { color: #856404; margin-bottom: 10px; }
+    .export-section p { font-size: 13px; color: #856404; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>📊 EDM Monitor - Review & Edit v3</h1>
+      <p>Review new items, approve/reject, export for dashboard</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-secondary" onclick="document.getElementById('file-input').click()">📂 Load CSV</button>
+      <button class="btn btn-info" onclick="openAddModal()">+ Add Item</button>
+      <button class="btn btn-primary" onclick="downloadApproved()">💾 Download Approved</button>
+      <button class="btn btn-warning" onclick="downloadSeenUrls()">📝 Download Seen URLs</button>
+    </div>
+  </div>
+
+  <input type="file" id="file-input" accept=".csv" style="display:none" onchange="loadFile(event)">
+
+  <div class="instructions">
+    <strong>Daily Workflow (15 min):</strong><br>
+    1) Load <code>data_draft.csv</code> → 
+    2) Review items (approve ✓ or reject ✗) → 
+    3) For news items, find primary .gov source → 
+    4) Download "Approved" → upload to GitHub as <code>data.csv</code> →
+    5) Download "Seen URLs" → upload to GitHub as <code>seen_urls.txt</code>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="number" id="total-count">0</div>
+      <div class="label">Total</div>
+    </div>
+    <div class="stat-card approved">
+      <div class="number" id="approved-count">0</div>
+      <div class="label">Approved</div>
+    </div>
+    <div class="stat-card rejected">
+      <div class="number" id="rejected-count">0</div>
+      <div class="label">Rejected</div>
+    </div>
+    <div class="stat-card">
+      <div class="number" id="pending-count">0</div>
+      <div class="label">Pending</div>
+    </div>
+    <div class="stat-card needs-primary">
+      <div class="number" id="needs-primary-count">0</div>
+      <div class="label">Need Primary</div>
+    </div>
+    <div class="stat-card">
+      <div class="number" id="high-count">0</div>
+      <div class="label">High Priority</div>
+    </div>
+  </div>
+
+  <div class="filters">
+    <label>Show:</label>
+    <select id="status-filter" onchange="applyFilters()">
+      <option value="">All Items</option>
+      <option value="pending">Pending</option>
+      <option value="approved">Approved</option>
+      <option value="rejected">Rejected</option>
+      <option value="needs-primary">Needs Primary Source</option>
+    </select>
+    
+    <label>Tier:</label>
+    <select id="tier-filter" onchange="applyFilters()">
+      <option value="">All</option>
+      <option value="1">T1 - Government</option>
+      <option value="2">T2 - Trade Orgs</option>
+      <option value="3">T3 - News</option>
+    </select>
+    
+    <label>Priority:</label>
+    <select id="priority-filter" onchange="applyFilters()">
+      <option value="">All</option>
+      <option value="high">High</option>
+      <option value="medium">Medium</option>
+      <option value="low">Low</option>
+    </select>
+
+    <label>Search:</label>
+    <input type="text" id="search-filter" placeholder="Search titles..." oninput="applyFilters()">
+  </div>
+
+  <div class="bulk-actions">
+    <input type="checkbox" id="select-all" onchange="toggleSelectAll()">
+    <span id="selected-count">0 selected</span>
+    <button class="btn btn-success" onclick="bulkApprove()" style="padding: 6px 12px; font-size: 12px;">✓ Approve Selected</button>
+    <button class="btn btn-danger" onclick="bulkReject()" style="padding: 6px 12px; font-size: 12px;">✗ Reject Selected</button>
+    <button class="btn btn-secondary" onclick="approveAllTier1()" style="padding: 6px 12px; font-size: 12px;">✓ Approve All T1</button>
+  </div>
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th class="checkbox-cell"></th>
+          <th>Status</th>
+          <th>Date</th>
+          <th>Tier</th>
+          <th>Priority</th>
+          <th>Title / Source</th>
+          <th>State</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="data-table">
+        <tr><td colspan="8" style="text-align:center; padding:40px; color:#666;">Load a CSV file to start reviewing</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="export-section">
+    <h3>📤 Export Instructions</h3>
+    <p>After reviewing all items:</p>
+    <ol style="margin-left: 20px; font-size: 13px; color: #856404;">
+      <li><strong>Download Approved</strong> - This becomes your <code>data.csv</code> for the dashboard</li>
+      <li><strong>Download Seen URLs</strong> - This updates <code>seen_urls.txt</code> so you don't see these items again</li>
+      <li>Upload both files to your GitHub repository</li>
+      <li>The dashboard will auto-update with approved items</li>
+    </ol>
+  </div>
+
+  <!-- Edit Modal -->
+  <div class="modal-overlay" id="edit-modal">
+    <div class="modal">
+      <h2>✏️ Edit Item</h2>
+      <input type="hidden" id="edit-id">
+      
+      <div id="suggested-sources-container"></div>
+      
+      <label>Title</label>
+      <textarea id="edit-title"></textarea>
+      
+      <label>URL (replace with primary source if needed)</label>
+      <input type="url" id="edit-url" placeholder="https://...">
+      
+      <label>Source Name</label>
+      <input type="text" id="edit-source">
+      
+      <div style="display: flex; gap: 15px;">
+        <div style="flex:1">
+          <label>Priority</label>
+          <select id="edit-priority">
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+        <div style="flex:1">
+          <label>Tier</label>
+          <select id="edit-tier">
+            <option value="1">T1 - Government</option>
+            <option value="2">T2 - Trade Org</option>
+            <option value="3">T3 - News</option>
+          </select>
+        </div>
+        <div style="flex:1">
+          <label>State</label>
+          <input type="text" id="edit-state" placeholder="e.g. NV, MA">
+        </div>
+      </div>
+      
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveEdit()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Item Modal -->
+  <div class="modal-overlay" id="add-modal">
+    <div class="modal">
+      <h2>+ Add New Item</h2>
+      
+      <label>Title *</label>
+      <textarea id="add-title" placeholder="e.g. CFTC Approves New Event Contract Rules"></textarea>
+      
+      <label>URL *</label>
+      <input type="url" id="add-url" placeholder="https://www.cftc.gov/...">
+      
+      <label>Source Name *</label>
+      <input type="text" id="add-source" placeholder="e.g. CFTC, Federal Register, MA Attorney General">
+      
+      <div style="display: flex; gap: 15px;">
+        <div style="flex:1">
+          <label>Tier *</label>
+          <select id="add-tier">
+            <option value="1">T1 - Government (.gov)</option>
+            <option value="2">T2 - Trade Organization</option>
+            <option value="3">T3 - News</option>
+          </select>
+        </div>
+        <div style="flex:1">
+          <label>Priority</label>
+          <select id="add-priority">
+            <option value="high">High</option>
+            <option value="medium" selected>Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+        <div style="flex:1">
+          <label>State</label>
+          <input type="text" id="add-state" placeholder="e.g. NV, MA">
+        </div>
+      </div>
+      
+      <label>Category</label>
+      <select id="add-category">
+        <option value="federal">Federal</option>
+        <option value="state">State</option>
+        <option value="courts">Courts</option>
+        <option value="industry">Industry</option>
+        <option value="news">News</option>
+      </select>
+      
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeAddModal()">Cancel</button>
+        <button class="btn btn-success" onclick="addNewItem()">Add Item</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let allData = [];
+    let filteredData = [];
+    let nextId = 1000;
+
+    // Primary source suggestions
+    const PRIMARY_SOURCE_LOOKUP = {
+      "cftc": [
+        { name: "CFTC Press Releases", url: "https://www.cftc.gov/PressRoom/PressReleases" },
+        { name: "CFTC Orders", url: "https://www.cftc.gov/LawRegulation/CFTCOrders/index.htm" },
+        { name: "Federal Register (CFTC)", url: "https://www.federalregister.gov/agencies/commodity-futures-trading-commission" },
+      ],
+      "sec": [
+        { name: "SEC Press Releases", url: "https://www.sec.gov/newsroom/press-releases" },
+        { name: "SEC Orders", url: "https://www.sec.gov/litigation/admin.htm" },
+      ],
+      "massachusetts": [
+        { name: "MA AG Press Releases", url: "https://www.mass.gov/orgs/office-of-attorney-general-andrea-joy-campbell" },
+        { name: "MA Gaming Commission", url: "https://massgaming.com/" },
+      ],
+      "nevada": [
+        { name: "NV Gaming Control Board", url: "https://gaming.nv.gov/" },
+        { name: "NV AG Press Releases", url: "https://ag.nv.gov/News/Press_Releases/" },
+      ],
+      "new york": [
+        { name: "NY AG Press Releases", url: "https://ag.ny.gov/press-releases" },
+        { name: "NY Gaming Commission", url: "https://www.gaming.ny.gov/" },
+      ],
+      "judge": [
+        { name: "PACER (Federal Courts)", url: "https://pacer.uscourts.gov/" },
+        { name: "CourtListener", url: "https://www.courtlistener.com/" },
+      ],
+      "court": [
+        { name: "PACER (Federal Courts)", url: "https://pacer.uscourts.gov/" },
+        { name: "CourtListener", url: "https://www.courtlistener.com/" },
+      ],
+      "kalshi": [
+        { name: "Kalshi Blog/News", url: "https://kalshi.com/blog" },
+        { name: "CFTC (Kalshi)", url: "https://www.cftc.gov/PressRoom/PressReleases" },
+      ],
+      "polymarket": [
+        { name: "Polymarket Blog", url: "https://polymarket.com/blog" },
+      ],
+    };
+
+    function getSuggestedSources(title) {
+      const titleLower = title.toLowerCase();
+      let suggestions = [];
+      for (const [keyword, sources] of Object.entries(PRIMARY_SOURCE_LOOKUP)) {
+        if (titleLower.includes(keyword)) {
+          suggestions = suggestions.concat(sources);
+        }
+      }
+      const seen = new Set();
+      return suggestions.filter(s => {
+        if (seen.has(s.url)) return false;
+        seen.add(s.url);
+        return true;
+      });
+    }
+
+    function renderSuggestedSources(title) {
+      const suggestions = getSuggestedSources(title);
+      if (suggestions.length === 0) return '';
+      return `
+        <div class="suggested-sources">
+          <h4>🔍 Suggested Primary Sources</h4>
+          ${suggestions.map(s => `
+            <div class="suggested-link">
+              <button class="use-this-btn" onclick="useThisUrl('${s.url}')">Use</button>
+              <a href="${s.url}" target="_blank">${s.name}</a>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function useThisUrl(url) {
+      document.getElementById('edit-url').value = url;
+      if (url.includes('.gov')) {
+        document.getElementById('edit-tier').value = '1';
+      }
+    }
+
+    function loadFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) { parseCSV(e.target.result); };
+      reader.readAsText(file);
+    }
+
+    function parseCSV(csvText) {
+      const lines = csvText.trim().split('\n');
+      const headers = parseCSVLine(lines[0]);
+      allData = [];
+      for (let i = 1; i < lines.length; i++) {
+        const values = parseCSVLine(lines[i]);
+        const row = { _index: i - 1, _status: 'pending', _edited: false };
+        headers.forEach((h, idx) => { row[h.trim()] = values[idx] || ''; });
+        row.needs_primary_source = row.needs_primary_source === 'True' || row.needs_primary_source === 'true';
+        allData.push(row);
+      }
+      updateStats();
+      applyFilters();
+    }
+
+    function parseCSVLine(line) {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') { inQuotes = !inQuotes; }
+        else if (char === ',' && !inQuotes) { result.push(current.trim()); current = ''; }
+        else { current += char; }
+      }
+      result.push(current.trim());
+      return result;
+    }
+
+    function updateStats() {
+      document.getElementById('total-count').textContent = allData.length;
+      document.getElementById('approved-count').textContent = allData.filter(d => d._status === 'approved').length;
+      document.getElementById('rejected-count').textContent = allData.filter(d => d._status === 'rejected').length;
+      document.getElementById('pending-count').textContent = allData.filter(d => d._status === 'pending').length;
+      document.getElementById('needs-primary-count').textContent = allData.filter(d => d.needs_primary_source && d._status !== 'rejected').length;
+      document.getElementById('high-count').textContent = allData.filter(d => d.priority === 'high').length;
+    }
+
+    function applyFilters() {
+      const status = document.getElementById('status-filter').value;
+      const tier = document.getElementById('tier-filter').value;
+      const priority = document.getElementById('priority-filter').value;
+      const search = document.getElementById('search-filter').value.toLowerCase();
+      filteredData = allData.filter(row => {
+        if (status === 'needs-primary' && !row.needs_primary_source) return false;
+        if (status && status !== 'needs-primary' && row._status !== status) return false;
+        if (tier && row.tier !== tier) return false;
+        if (priority && row.priority !== priority) return false;
+        if (search && !row.title?.toLowerCase().includes(search)) return false;
+        return true;
+      });
+      renderTable();
+      updateSelectedCount();
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('data-table');
+      if (filteredData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px; color:#666;">No items match your filters</td></tr>';
+        return;
+      }
+      tbody.innerHTML = filteredData.map(row => {
+        const needsPrimary = row.needs_primary_source && row._status !== 'approved';
+        const rowClass = row._status + (needsPrimary ? ' needs-primary' : '');
+        return `
+          <tr class="${rowClass}" data-index="${row._index}">
+            <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-index="${row._index}" onchange="updateSelectedCount()"></td>
+            <td>${row._status === 'approved' ? '<span class="status-approved">✓ Approved</span>' : 
+                 row._status === 'rejected' ? '<span class="status-rejected">✗ Rejected</span>' : 
+                 needsPrimary ? '<span style="color:#856404">📰 Find Primary</span>' : '<span style="color:#999">Pending</span>'}</td>
+            <td>${row.date || '-'}</td>
+            <td><span class="tier-badge tier-${row.tier}">T${row.tier}</span></td>
+            <td><span class="priority-${row.priority}">${row.priority?.toUpperCase() || '-'}</span></td>
+            <td class="title-cell">
+              <a href="${row.url}" target="_blank">${row.title || 'No title'}</a>
+              <div class="source">${row.source || ''}${needsPrimary ? '<span class="needs-primary-badge">needs primary</span>' : ''}</div>
+            </td>
+            <td>${row.state || '-'}</td>
+            <td class="action-btns">
+              ${row._status !== 'approved' ? `<button class="action-btn approve" onclick="approveItem(${row._index})">✓</button>` : ''}
+              ${row._status !== 'rejected' ? `<button class="action-btn reject" onclick="rejectItem(${row._index})">✗</button>` : ''}
+              ${needsPrimary ? `<button class="action-btn find-primary" onclick="openEditModal(${row._index})">🔍</button>` : ''}
+              <button class="action-btn edit" onclick="openEditModal(${row._index})">✏️</button>
+              ${row._status !== 'pending' ? `<button class="action-btn undo" onclick="undoItem(${row._index})">↩</button>` : ''}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function approveItem(index) { allData[index]._status = 'approved'; updateStats(); applyFilters(); }
+    function rejectItem(index) { allData[index]._status = 'rejected'; updateStats(); applyFilters(); }
+    function undoItem(index) { allData[index]._status = 'pending'; updateStats(); applyFilters(); }
+
+    function openEditModal(index) {
+      const item = allData[index];
+      document.getElementById('edit-id').value = index;
+      document.getElementById('edit-title').value = item.title || '';
+      document.getElementById('edit-url').value = item.url || '';
+      document.getElementById('edit-source').value = item.source || '';
+      document.getElementById('edit-priority').value = item.priority || 'medium';
+      document.getElementById('edit-tier').value = item.tier || '3';
+      document.getElementById('edit-state').value = item.state || '';
+      document.getElementById('suggested-sources-container').innerHTML = renderSuggestedSources(item.title || '');
+      document.getElementById('edit-modal').classList.add('active');
+    }
+
+    function closeEditModal() { document.getElementById('edit-modal').classList.remove('active'); }
+
+    function saveEdit() {
+      const index = parseInt(document.getElementById('edit-id').value);
+      allData[index].title = document.getElementById('edit-title').value;
+      allData[index].url = document.getElementById('edit-url').value;
+      allData[index].source = document.getElementById('edit-source').value;
+      allData[index].priority = document.getElementById('edit-priority').value;
+      allData[index].tier = document.getElementById('edit-tier').value;
+      allData[index].state = document.getElementById('edit-state').value;
+      allData[index]._edited = true;
+      if (allData[index].url.includes('.gov')) { allData[index].needs_primary_source = false; }
+      closeEditModal();
+      updateStats();
+      applyFilters();
+    }
+
+    function openAddModal() {
+      document.getElementById('add-title').value = '';
+      document.getElementById('add-url').value = '';
+      document.getElementById('add-source').value = '';
+      document.getElementById('add-tier').value = '1';
+      document.getElementById('add-priority').value = 'medium';
+      document.getElementById('add-state').value = '';
+      document.getElementById('add-category').value = 'federal';
+      document.getElementById('add-modal').classList.add('active');
+    }
+
+    function closeAddModal() { document.getElementById('add-modal').classList.remove('active'); }
+
+    function addNewItem() {
+      const title = document.getElementById('add-title').value.trim();
+      const url = document.getElementById('add-url').value.trim();
+      const source = document.getElementById('add-source').value.trim();
+      if (!title || !url || !source) { alert('Please fill in Title, URL, and Source'); return; }
+      const newItem = {
+        _index: allData.length,
+        _status: 'approved',
+        _edited: false,
+        id: 'manual-' + (nextId++),
+        date: new Date().toISOString().split('T')[0],
+        tier: document.getElementById('add-tier').value,
+        priority: document.getElementById('add-priority').value,
+        category: document.getElementById('add-category').value,
+        title: title,
+        source: source,
+        state: document.getElementById('add-state').value.trim() || null,
+        url: url,
+        needs_primary_source: false,
+      };
+      allData.unshift(newItem);
+      allData.forEach((item, idx) => item._index = idx);
+      closeAddModal();
+      updateStats();
+      applyFilters();
+      alert('Item added and auto-approved!');
+    }
+
+    function toggleSelectAll() {
+      const checked = document.getElementById('select-all').checked;
+      document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = checked);
+      updateSelectedCount();
+    }
+
+    function updateSelectedCount() {
+      const count = document.querySelectorAll('.row-checkbox:checked').length;
+      document.getElementById('selected-count').textContent = `${count} selected`;
+    }
+
+    function getSelectedIndices() {
+      return Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => parseInt(cb.dataset.index));
+    }
+
+    function bulkApprove() {
+      getSelectedIndices().forEach(index => allData[index]._status = 'approved');
+      updateStats(); applyFilters();
+    }
+
+    function bulkReject() {
+      getSelectedIndices().forEach(index => allData[index]._status = 'rejected');
+      updateStats(); applyFilters();
+    }
+
+    function approveAllTier1() {
+      allData.forEach(item => {
+        if (item.tier === '1' && item._status === 'pending') { item._status = 'approved'; }
+      });
+      updateStats(); applyFilters();
+    }
+
+    function downloadApproved() {
+      let exportData = allData.filter(d => d._status === 'approved');
+      if (exportData.length === 0) {
+        if (confirm('No items approved yet. Download anyway?')) {
+          exportData = allData.filter(d => d._status !== 'rejected');
+        } else { return; }
+      }
+      const headers = ['id', 'date', 'tier', 'priority', 'category', 'title', 'source', 'state', 'url'];
+      const rows = exportData.map(row => {
+        return headers.map(h => {
+          let val = row[h] || '';
+          if (typeof val === 'string' && (val.includes(',') || val.includes('"') || val.includes('\n'))) {
+            val = '"' + val.replace(/"/g, '""') + '"';
+          }
+          return val;
+        }).join(',');
+      });
+      const csv = [headers.join(','), ...rows].join('\n');
+      downloadFile(csv, 'data.csv', 'text/csv');
+      alert(`Downloaded ${exportData.length} approved items as data.csv\n\nNow download "Seen URLs" to prevent duplicates!`);
+    }
+
+    function downloadSeenUrls() {
+      // Export ALL reviewed URLs (both approved and rejected)
+      const reviewedUrls = allData
+        .filter(d => d._status === 'approved' || d._status === 'rejected')
+        .map(d => d.url)
+        .filter(url => url);
+      
+      if (reviewedUrls.length === 0) {
+        alert('No items have been reviewed yet. Approve or reject items first.');
+        return;
+      }
+      
+      const content = reviewedUrls.join('\n');
+      downloadFile(content, 'seen_urls.txt', 'text/plain');
+      alert(`Downloaded ${reviewedUrls.length} URLs to seen_urls.txt\n\nUpload this to GitHub to prevent seeing these items again.`);
+    }
+
+    function downloadFile(content, filename, type) {
+      const blob = new Blob([content], { type });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Close modals on outside click
+    document.getElementById('edit-modal').addEventListener('click', function(e) { if (e.target === this) closeEditModal(); });
+    document.getElementById('add-modal').addEventListener('click', function(e) { if (e.target === this) closeAddModal(); });
+  </script>
+</body>
+</html>

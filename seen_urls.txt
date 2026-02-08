@@ -1,0 +1,4 @@
+# EDM Monitor - Seen URLs
+# Add URLs here (one per line) to prevent them from appearing in future fetches
+# This file is automatically updated when you download "Seen URLs" from the review editor
+
