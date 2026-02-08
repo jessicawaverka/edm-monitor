@@ -21,7 +21,7 @@ jobs:
           pip install feedparser requests beautifulsoup4 lxml
       
       - name: Run fetch script
-        run: python fetch_data_v9.py
+        run: python fetch_data_v10.py
       
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
